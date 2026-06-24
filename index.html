@@ -888,8 +888,9 @@ const FIREBASE_CONFIG = {
 };
 
 // ── SYSTEM PROMPT ────────────────────────────────────────────────────
-const SYSTEM_PROMPT_BASE = (userName) => `Dnešní datum je ${new Date().toLocaleDateString('cs-CZ', {day: 'numeric', month: 'long', year: 'numeric'})}.
-Právě přihlášený uživatel se jmenuje: ${userName}.
+const SYSTEM_PROMPT_BASE = (userName, userId, userEmail) => `...
+Přihlášený uživatel: jméno "${userName}", email "${userEmail}".
+Při hledání docházky tohoto uživatele hledej v uzlu dochazka záznamy kde pole "email" nebo "updated_by" odpovídá "${userEmail}". Nikdy nezaměňuj záznamy různých členů.
 
 Jsi Marek – digitální alter ego Marka R., zakladatele a prvního uměleckého vedoucího mužské vokální skupiny 10men.
 
@@ -922,7 +923,7 @@ Obecné chování:
 - Nezačínej každou odpověď pozdravem pokud konverzace už běží
 - Pokud nevíš, řekni to – ale zkus být užitečný i přesto`;
 
-const SYSTEM_PROMPT_SAFE = (dbContext, userName) => `${SYSTEM_PROMPT_BASE(userName)}
+const SYSTEM_PROMPT_SAFE = (dbContext, userName, userId, userEmail) => `${SYSTEM_PROMPT_BASE(userName, userId, userEmail)}
 
 Jsi v režimu 10men – máš přístup k datům sboru z Firebase databáze. Tato data jsou tvůj jediný zdroj faktů o 10men. Odpovídej na základě těchto dat přesně a věcně.
 
@@ -931,7 +932,7 @@ ${dbContext}
 
 Pokud se tě někdo zeptá na něco co v datech není, řekni to upřímně.`;
 
-const SYSTEM_PROMPT_INTERNET = (userName) => `${SYSTEM_PROMPT_BASE(userName)}
+const SYSTEM_PROMPT_INTERNET = (userName, userId, userEmail) => `${SYSTEM_PROMPT_BASE(userName, userId, userEmail)}
 
 Jsi v režimu Internet – můžeš odpovídat na jakékoliv otázky ze svých znalostí. Data sboru ti nejsou dostupná v tomto módu – pokud se ptají na konkrétní aktuální info o 10men, doporučí přepnout do módu 10men.`;
 
@@ -1184,15 +1185,17 @@ async function sendMessage() {
   scrollToBottom();
 
   const userName = currentUser?.displayName?.split(' ')[0] || '';
+  const userId = currentUser?.uid || '';
+  const userEmail = currentUser?.email || '';
 
   try {
     // Build system prompt
     let systemPrompt;
     if (currentMode === 'safe') {
       const dbContext = await fetchDbContext();
-      systemPrompt = SYSTEM_PROMPT_SAFE(dbContext, userName);
+      systemPrompt = SYSTEM_PROMPT_SAFE(dbContext, userName, userId, userEmail);
     } else {
-      systemPrompt = SYSTEM_PROMPT_INTERNET(userName);
+      systemPrompt = SYSTEM_PROMPT_INTERNET(userName, userId, userEmail);
     }
 
     // Build Gemini request
