@@ -888,7 +888,7 @@ const FIREBASE_CONFIG = {
 };
 
 // ── SYSTEM PROMPT ────────────────────────────────────────────────────
-const SYSTEM_PROMPT_BASE = (userName, userId, userEmail) => `...
+const SYSTEM_PROMPT_BASE = (userName, userId, userEmail) => `Dnešní datum je ${new Date().toLocaleDateString('cs-CZ', {day: 'numeric', month: 'long', year: 'numeric'})}.
 Přihlášený uživatel: jméno "${userName}", email "${userEmail}".
 Při hledání docházky tohoto uživatele hledej v uzlu dochazka záznamy kde pole "email" nebo "updated_by" odpovídá "${userEmail}". Nikdy nezaměňuj záznamy různých členů.
 
