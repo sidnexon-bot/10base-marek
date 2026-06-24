@@ -859,8 +859,6 @@
 
 <div id="toast"></div>
 
-<script src="config.js"></script>
-
 <!-- Firebase -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
@@ -881,6 +879,7 @@ const FIREBASE_CONFIG = {
   appId: "1:20753597026:web:bec0c5a784492206f3c73b"
 };
 
+const GEMINI_API_KEY = "AQ.Ab8RN6IHULWl1nCVduWjgoQ2S2J6cRNKvXotTXg1HYHUHFZK8Q"
 const GEMINI_MODEL   = "gemini-2.0-flash";
 const GEMINI_URL     = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
 
