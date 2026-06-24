@@ -879,7 +879,6 @@ const FIREBASE_CONFIG = {
   appId: "1:20753597026:web:bec0c5a784492206f3c73b"
 };
 
-const GEMINI_API_KEY = "AQ.Ab8RN6LVFSSifppgAxcTg289iI1lSxJ1Qvy189v29YKyujlUHA";
 const GEMINI_MODEL = "gemini-2.0-flash";
 const GEMINI_URL = "https://marek-gemini-proxy.724qtwpq7r.workers.dev/";
 
@@ -1188,18 +1187,15 @@ async function sendMessage() {
       }
     };
 
-     const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent`,
-      {
+    // Voláme tvůj proxy Worker, který v sobě bezpečně drží ten klíč
+     const res = await fetch(GEMINI_URL, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${GEMINI_API_KEY}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify(body)
       }
     );
-
 
     if (!res.ok) {
       const err = await res.json();
