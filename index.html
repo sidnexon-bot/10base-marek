@@ -1173,11 +1173,12 @@ async function sendMessage() {
   const typingEl = renderTyping();
   scrollToBottom();
 
+  const userName = currentUser?.displayName?.split(' ')[0] || '';
+
   try {
     // Build system prompt
     let systemPrompt;
     if (currentMode === 'safe') {
-      const userName = currentUser?.displayName?.split(' ')[0] || '';
       const dbContext = await fetchDbContext();
       systemPrompt = SYSTEM_PROMPT_SAFE(dbContext, userName);
     } else {
