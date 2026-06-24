@@ -1254,12 +1254,26 @@ async function sendMessage() {
 // ── DB CONTEXT ────────────────────────────────────────────────────────
 async function fetchDbContext() {
   try {
-    const snap = await get(ref(db, '/'));
-    if (!snap.exists()) return 'Databáze je prázdná.';
-    const data = snap.val();
-    // Stringify with limit to avoid token overflow
-    const json = JSON.stringify(data, null, 2);
-    return json.length > 80000 ? json.slice(0, 80000) + '\n... (zkráceno)' : json;
+    const uzly = ['akce', 'aktuality', 'config', 'dochazka', 'energie', 
+                  'favorites', 'grilovacka_items', 'members', 'platby', 
+                  'program', 'repertoar', 'todos', 'vybery'];
+    
+    let context = '';
+    
+    for (const uzel of uzly) {
+      try {
+        const snap = await get(ref(db, `/${uzel}`));
+        if (snap.exists()) {
+          const json = JSON.stringify(snap.val());
+          context += `\n\n=== ${uzel.toUpperCase()} ===\n${json}`;
+        }
+      } catch (e) {
+        context += `\n\n=== ${uzel.toUpperCase()} ===\nChyba načítání: ${e.message}`;
+      }
+    }
+    
+    // Limit 120 000 znaků
+    return context.length > 120000 ? context.slice(0, 120000) + '\n... (zkráceno)' : context;
   } catch (e) {
     return `Databázi se nepodařilo načíst: ${e.message}`;
   }
