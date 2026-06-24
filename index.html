@@ -929,7 +929,7 @@ const db   = getDatabase(app);
 // ── STATE ───────────────────────────────────────────────────────────
 let currentUser   = null;
 let geminiApiKeyFromDb = null;
-const GEMINI_MODEL = "google/gemini-2.0-flash:free";
+const GEMINI_MODEL = "google/gemini-2.5-flash-lite";
 let currentChatId = null;
 let currentMode   = 'safe'; // 'safe' | 'internet'
 let messages      = [];     // [{role, content}]
