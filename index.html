@@ -879,9 +879,6 @@ const FIREBASE_CONFIG = {
   appId: "1:20753597026:web:bec0c5a784492206f3c73b"
 };
 
-const GEMINI_MODEL = "gemini-2.0-flash";
-const GEMINI_URL = "https://marek-gemini-proxy.724qtwpq7r.workers.dev/";
-
 // ── SYSTEM PROMPT ────────────────────────────────────────────────────
 const SYSTEM_PROMPT_BASE = `Jsi Marek – digitální alter ego Marka Šedivého, zakladatele a prvního uměleckého vedoucího mužské vokální skupiny 10men.
 
@@ -931,6 +928,8 @@ const db   = getDatabase(app);
 
 // ── STATE ───────────────────────────────────────────────────────────
 let currentUser   = null;
+let geminiApiKeyFromDb = null;
+const GEMINI_MODEL = "gemini-2.0-flash";
 let currentChatId = null;
 let currentMode   = 'safe'; // 'safe' | 'internet'
 let messages      = [];     // [{role, content}]
@@ -981,12 +980,21 @@ onAuthStateChanged(auth, user => {
     $input.disabled = false;
     updateSendBtn();
 
+    get(ref(db, 'gemini_config/apiKey')).then(snapshot => {
+    if (snapshot.exists()) {
+      geminiApiKeyFromDb = snapshot.val();
+    } else {
+      showToast('Chyba: Gemini klíč nenalezen v DB.');
+    }
+  }).catch(e => showToast('Chyba načítání klíče: ' + e.message));
+
     // Load chats
     loadChatList();
   } else {
     $loginScreen.style.display = 'flex';
     $input.disabled = true;
     $btnSend.disabled = true;
+    geminiApiKeyFromDb = null;
   }
 });
 
@@ -1187,15 +1195,15 @@ async function sendMessage() {
       }
     };
 
-    // Voláme tvůj proxy Worker, který v sobě bezpečně drží ten klíč
-     const res = await fetch(GEMINI_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(body)
-      }
-    );
+    if (!geminiApiKeyFromDb) throw new Error('API klíč ještě nebyl načten.');
+    
+    const googleUrl = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${geminiApiKeyFromDb}`;
+    
+    const res = await fetch(googleUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
 
     if (!res.ok) {
       const err = await res.json();
