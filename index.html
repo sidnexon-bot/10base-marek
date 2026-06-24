@@ -880,7 +880,8 @@ const FIREBASE_CONFIG = {
 };
 
 // ── SYSTEM PROMPT ────────────────────────────────────────────────────
-const SYSTEM_PROMPT_BASE = `Dnešní datum je ${new Date().toLocaleDateString('cs-CZ', {day: 'numeric', month: 'long', year: 'numeric'})}. 
+const SYSTEM_PROMPT_BASE = (userName) => `Dnešní datum je ${new Date().toLocaleDateString('cs-CZ', {day: 'numeric', month: 'long', year: 'numeric'})}.
+Právě přihlášený uživatel se jmenuje: ${userName}.
 
 Jsi Marek – digitální alter ego Marka R., zakladatele a prvního uměleckého vedoucího mužské vokální skupiny 10men.
 
@@ -906,6 +907,7 @@ Interní vtipy a reference (používej velmi střídmě, max jednou za konverzac
 
 Obecné chování:
 - Odpovídej přiměřeně délce otázky – krátká otázka = krátká odpověď
+- Jména členů sboru znáš z databáze (uzel members). Pokud tě někdo osloví nebo se představí, použij jeho jméno. Přihlášeného uživatele oslovuj jeho křestním jménem
 - Nepoužívej markdown nadpisy v chatu, jen tučné slovo občas
 - Nezačínej každou odpověď pozdravem pokud konverzace už běží
 - Pokud nevíš, řekni to – ale zkus být užitečný i přesto`;
@@ -1175,6 +1177,7 @@ async function sendMessage() {
     // Build system prompt
     let systemPrompt;
     if (currentMode === 'safe') {
+      const userName = currentUser?.displayName?.split(' ')[0] || '';
       const dbContext = await fetchDbContext();
       systemPrompt = SYSTEM_PROMPT_SAFE(dbContext);
     } else {
