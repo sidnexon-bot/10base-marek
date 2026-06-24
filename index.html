@@ -1186,7 +1186,10 @@ async function sendMessage() {
     }));
 
     const body = {
-      system_instruction: { parts: [{ text: systemPrompt }] },
+      system_instruction: {
+        role: "system",
+        parts: [{ text: systemPrompt }]
+      },
       contents,
       generationConfig: {
         temperature: 0.85,
@@ -1197,8 +1200,9 @@ async function sendMessage() {
 
     if (!geminiApiKeyFromDb) throw new Error('API klíč ještě nebyl načten.');
     
-    const googleUrl = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${geminiApiKeyFromDb}`;
-    
+    const cleanApiKey = geminiApiKeyFromDb.trim();
+    console.log("Odesílám s klíčem:", cleanApiKey);
+    const googleUrl = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${cleanApiKey}`;
     const res = await fetch(googleUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
