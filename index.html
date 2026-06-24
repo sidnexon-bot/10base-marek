@@ -1424,6 +1424,14 @@ function showToast(msg) {
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => $toast.classList.remove('show'), 4000);
 }
+
+// iOS keyboard fix
+if (/iPhone|iPad/.test(navigator.userAgent)) {
+  window.visualViewport.addEventListener('resize', () => {
+    document.getElementById('main').style.height = window.visualViewport.height + 'px';
+  });
+}
+  
 </script>
 </body>
 </html>
