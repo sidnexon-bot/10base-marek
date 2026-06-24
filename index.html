@@ -1433,8 +1433,19 @@ function showToast(msg) {
 
 // iOS keyboard fix
 if (/iPhone|iPad/.test(navigator.userAgent)) {
+  const main = document.getElementById('main');
+  const messagesWrap = document.getElementById('messages-wrap');
+  
   window.visualViewport.addEventListener('resize', () => {
-    document.getElementById('main').style.height = window.visualViewport.height + 'px';
+    const vh = window.visualViewport.height;
+    main.style.height = vh + 'px';
+    main.style.maxHeight = vh + 'px';
+    scrollToBottom();
+  });
+
+  window.visualViewport.addEventListener('scroll', () => {
+    main.style.top = window.visualViewport.offsetTop + 'px';
+    scrollToBottom();
   });
 }
   
