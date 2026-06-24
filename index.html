@@ -1205,6 +1205,7 @@ async function sendMessage() {
     const googleUrl = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${cleanApiKey}`;
     const res = await fetch(googleUrl, {
       method: 'POST',
+      credentials: 'omit',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body)
     });
