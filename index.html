@@ -1254,26 +1254,59 @@ async function sendMessage() {
 // ── DB CONTEXT ────────────────────────────────────────────────────────
 async function fetchDbContext() {
   try {
-    const uzly = ['akce', 'aktuality', 'config', 'dochazka', 'energie', 
-                  'favorites', 'grilovacka_items', 'members', 'platby', 
-                  'program', 'repertoar', 'todos', 'vybery'];
-    
-    let context = '';
-    
-    for (const uzel of uzly) {
-      try {
-        const snap = await get(ref(db, `/${uzel}`));
-        if (snap.exists()) {
-          const json = JSON.stringify(snap.val());
-          context += `\n\n=== ${uzel.toUpperCase()} ===\n${json}`;
-        }
-      } catch (e) {
-        context += `\n\n=== ${uzel.toUpperCase()} ===\nChyba načítání: ${e.message}`;
-      }
-    }
-    
-    // Limit 120 000 znaků
-    return context.length > 120000 ? context.slice(0, 120000) + '\n... (zkráceno)' : context;
+    const [akceSnap, repertoarSnap, programSnap, membersSnap, dochazkaSnap, 
+           aktualitySnap, todosSnap, grilovackaSnap] = await Promise.all([
+      get(ref(db, '/akce')),
+      get(ref(db, '/repertoar')),
+      get(ref(db, '/program')),
+      get(ref(db, '/members')),
+      get(ref(db, '/dochazka')),
+      get(ref(db, '/aktuality')),
+      get(ref(db, '/todos')),
+      get(ref(db, '/grilovacka_items'))
+    ]);
+
+    const akce      = akceSnap.exists()      ? akceSnap.val()      : {};
+    const repertoar = repertoarSnap.exists() ? repertoarSnap.val() : {};
+    const program   = programSnap.exists()   ? programSnap.val()   : {};
+    const members   = membersSnap.exists()   ? membersSnap.val()   : {};
+    const dochazka  = dochazkaSnap.exists()  ? dochazkaSnap.val()  : {};
+    const aktuality = aktualitySnap.exists() ? aktualitySnap.val() : {};
+    const todos     = todosSnap.exists()     ? todosSnap.val()     : {};
+    const grilovacka = grilovackaSnap.exists() ? grilovackaSnap.val() : {};
+
+    // Spoj program s názvy akcí a skladeb
+    const programSpojeny = Object.values(program).map(p => {
+      const akce_obj = Object.values(akce).find(a => a.id === p.id_akce) || {};
+      const skladba  = Object.values(repertoar).find(r => r.id === p.song_id) || {};
+      return {
+        akce: akce_obj.nazev || akce_obj.name || p.id_akce,
+        datum: akce_obj.datum || akce_obj.date || '',
+        poradi: p.order,
+        skladba: skladba.nazev || skladba.name || skladba.title || p.song_id
+      };
+    }).sort((a, b) => (a.datum > b.datum ? 1 : -1));
+
+    // Členové – jen základní info
+    const membersList = Object.values(members).map(m => ({
+      jmeno: m.name || m.jmeno,
+      hlas: m.voice || m.hlas,
+      aktivni: m.active !== false
+    }));
+
+    let context = `=== PROGRAM ZKOUŠEK A KONCERTŮ ===\n${JSON.stringify(programSpojeny)}\n\n`;
+    context += `=== AKCE ===\n${JSON.stringify(Object.values(akce))}\n\n`;
+    context += `=== ČLENOVÉ ===\n${JSON.stringify(membersList)}\n\n`;
+    context += `=== REPERTOÁR ===\n${JSON.stringify(Object.values(repertoar))}\n\n`;
+    context += `=== DOCHÁZKA ===\n${JSON.stringify(dochazka)}\n\n`;
+    context += `=== AKTUALITY ===\n${JSON.stringify(aktuality)}\n\n`;
+    context += `=== TODOS ===\n${JSON.stringify(todos)}\n\n`;
+    context += `=== GRILOVAČKA ===\n${JSON.stringify(grilovacka)}\n\n`;
+
+    return context.length > 120000 
+      ? context.slice(0, 120000) + '\n... (zkráceno)' 
+      : context;
+
   } catch (e) {
     return `Databázi se nepodařilo načíst: ${e.message}`;
   }
