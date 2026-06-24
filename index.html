@@ -912,7 +912,7 @@ Obecné chování:
 - Nezačínej každou odpověď pozdravem pokud konverzace už běží
 - Pokud nevíš, řekni to – ale zkus být užitečný i přesto`;
 
-const SYSTEM_PROMPT_SAFE = (dbContext) => `${SYSTEM_PROMPT_BASE}
+const SYSTEM_PROMPT_SAFE = (dbContext, userName) => `${SYSTEM_PROMPT_BASE(userName)}
 
 Jsi v režimu 10men – máš přístup k datům sboru z Firebase databáze. Tato data jsou tvůj jediný zdroj faktů o 10men. Odpovídej na základě těchto dat přesně a věcně.
 
@@ -921,7 +921,7 @@ ${dbContext}
 
 Pokud se tě někdo zeptá na něco co v datech není, řekni to upřímně.`;
 
-const SYSTEM_PROMPT_INTERNET = `${SYSTEM_PROMPT_BASE}
+const SYSTEM_PROMPT_INTERNET = (userName) = `${SYSTEM_PROMPT_BASE(userName)}
 
 Jsi v režimu Internet – můžeš odpovídat na jakékoliv otázky ze svých znalostí. Data sboru ti nejsou dostupná v tomto módu – pokud se ptají na konkrétní aktuální info o 10men, doporučí přepnout do módu 10men.`;
 
@@ -1179,9 +1179,9 @@ async function sendMessage() {
     if (currentMode === 'safe') {
       const userName = currentUser?.displayName?.split(' ')[0] || '';
       const dbContext = await fetchDbContext();
-      systemPrompt = SYSTEM_PROMPT_SAFE(dbContext);
+      systemPrompt = SYSTEM_PROMPT_SAFE(dbContext, userName);
     } else {
-      systemPrompt = SYSTEM_PROMPT_INTERNET;
+      systemPrompt = SYSTEM_PROMPT_INTERNET(userName);
     }
 
     // Build Gemini request
