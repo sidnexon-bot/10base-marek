@@ -251,6 +251,12 @@
     flex-shrink: 0;
   }
 
+  #topbar {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+
   #chat-title-display {
     font-size: 14px;
     font-weight: 500;
@@ -1443,12 +1449,6 @@ if (/iPhone|iPad/.test(navigator.userAgent)) {
     scrollToBottom();
   });
 }
-
-  #topbar {
-    position: sticky;
-    top: 0;
-    z-index: 10;
-  }
   
 </script>
 </body>
