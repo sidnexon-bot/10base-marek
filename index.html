@@ -879,9 +879,9 @@ const FIREBASE_CONFIG = {
   appId: "1:20753597026:web:bec0c5a784492206f3c73b"
 };
 
-const GEMINI_API_KEY = "AIzaSyC3DVaIgoamasg_uLlwdBOboejOMVFdu0s";
-const GEMINI_MODEL   = "gemini-2.0-flash";
-const GEMINI_URL     = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
+const GEMINI_API_KEY = "AQ.Ab8RN6LVFSSifppgAxcTg289iI1lSxJ1Qvy189v29YKyujlUHA";
+const GEMINI_MODEL = "gemini-2.0-flash";
+const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 
 // ── SYSTEM PROMPT ────────────────────────────────────────────────────
 const SYSTEM_PROMPT_BASE = `Jsi Marek – digitální alter ego Marka Šedivého, zakladatele a prvního uměleckého vedoucího mužské vokální skupiny 10men.
@@ -1188,9 +1188,12 @@ async function sendMessage() {
       }
     };
 
-    const res  = await fetch(GEMINI_URL, {
+    const res = await fetch(GEMINI_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-goog-api-key': GEMINI_API_KEY
+      },
       body: JSON.stringify(body)
     });
 
