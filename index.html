@@ -1276,7 +1276,7 @@ async function sendMessage() {
     // Build system prompt
     let systemPrompt;
     if (currentMode === 'safe') {
-      const dbContext = await fetchDbContext();
+      const dbContext = await fetchDbContext(userEmail);
       systemPrompt = SYSTEM_PROMPT_SAFE(dbContext, userName, userId, userEmail);
     } else {
       systemPrompt = SYSTEM_PROMPT_INTERNET(userName, userId, userEmail);
@@ -1353,7 +1353,7 @@ async function sendMessage() {
 }
 
 // ── DB CONTEXT ────────────────────────────────────────────────────────
-async function fetchDbContext() {
+async function fetchDbContext(userEmail) {
   console.log("Načítám DB kontext...");
   try {
     const [akceSnap, repertoarSnap, programSnap, membersSnap, dochazkaSnap,
