@@ -1355,7 +1355,7 @@ async function sendMessage() {
 // ── DB CONTEXT ────────────────────────────────────────────────────────
 async function fetchDbContext() {
   try {
-    const [akceSnap, repertoarSnap, programSnap, membersSnap, dochazkaSnap, 
+    const [akceSnap, repertoarSnap, programSnap, membersSnap, dochazkaSnap,
            aktualitySnap, todosSnap, grilovackaSnap] = await Promise.all([
       get(ref(db, '/akce')),
       get(ref(db, '/repertoar')),
@@ -1367,45 +1367,121 @@ async function fetchDbContext() {
       get(ref(db, '/grilovacka_items'))
     ]);
 
-    const akce      = akceSnap.exists()      ? akceSnap.val()      : {};
-    const repertoar = repertoarSnap.exists() ? repertoarSnap.val() : {};
-    const program   = programSnap.exists()   ? programSnap.val()   : {};
-    const members   = membersSnap.exists()   ? membersSnap.val()   : {};
-    const dochazka  = dochazkaSnap.exists()  ? dochazkaSnap.val()  : {};
-    const aktuality = aktualitySnap.exists() ? aktualitySnap.val() : {};
-    const todos     = todosSnap.exists()     ? todosSnap.val()     : {};
-    const grilovacka = grilovackaSnap.exists() ? grilovackaSnap.val() : {};
+    const akce       = akceSnap.exists()       ? Object.values(akceSnap.val())       : [];
+    const repertoar  = repertoarSnap.exists()  ? Object.values(repertoarSnap.val())  : [];
+    const program    = programSnap.exists()     ? Object.values(programSnap.val())    : [];
+    const members    = membersSnap.exists()     ? Object.values(membersSnap.val())    : [];
+    const dochazka   = dochazkaSnap.exists()    ? Object.values(dochazkaSnap.val())   : [];
+    const aktuality  = aktualitySnap.exists()   ? Object.values(aktualitySnap.val())  : [];
+    const todos      = todosSnap.exists()        ? Object.values(todosSnap.val())      : [];
+    const grilovacka = grilovackaSnap.exists()  ? Object.values(grilovackaSnap.val()) : [];
 
-    // Spoj program s názvy akcí a skladeb
-    const programSpojeny = Object.values(program).map(p => {
-      const akce_obj = Object.values(akce).find(a => a.id === p.id_akce) || {};
-      const skladba  = Object.values(repertoar).find(r => r.id === p.song_id) || {};
-      return {
-        akce: akce_obj.nazev || akce_obj.name || p.id_akce,
-        datum: akce_obj.datum || akce_obj.date || '',
-        poradi: p.order,
-        skladba: skladba.nazev || skladba.name || skladba.title || p.song_id
-      };
-    }).sort((a, b) => (a.datum > b.datum ? 1 : -1));
+    const dnes = new Date();
+    dnes.setHours(0, 0, 0, 0);
 
-    // Členové – jen základní info
-    const membersList = Object.values(members).map(m => ({
-      jmeno: m.name || m.jmeno,
-      hlas: m.voice || m.hlas,
-      aktivni: m.active !== false
-    }));
+    // Pomocná funkce pro datum akce
+    const datumAkce = (a) => a.date ? new Date(a.date) : null;
 
-    let context = `=== PROGRAM ZKOUŠEK A KONCERTŮ ===\n${JSON.stringify(programSpojeny)}\n\n`;
-    context += `=== AKCE ===\n${JSON.stringify(Object.values(akce))}\n\n`;
-    context += `=== ČLENOVÉ ===\n${JSON.stringify(membersList)}\n\n`;
-    context += `=== REPERTOÁR ===\n${JSON.stringify(Object.values(repertoar))}\n\n`;
-    context += `=== DOCHÁZKA ===\n${JSON.stringify(dochazka)}\n\n`;
-    context += `=== AKTUALITY ===\n${JSON.stringify(aktuality)}\n\n`;
-    context += `=== TODOS ===\n${JSON.stringify(todos)}\n\n`;
-    context += `=== GRILOVAČKA ===\n${JSON.stringify(grilovacka)}\n\n`;
+    // Rozdělení akcí na nadcházející a proběhlé
+    const nadchazejici = akce
+      .filter(a => {
+        const d = datumAkce(a);
+        return d && d >= dnes;
+      })
+      .sort((a, b) => datumAkce(a) - datumAkce(b));
 
-    return context.length > 120000 
-      ? context.slice(0, 120000) + '\n... (zkráceno)' 
+    const probehle = akce
+      .filter(a => {
+        const d = datumAkce(a);
+        return !d || d < dnes;
+      })
+      .sort((a, b) => datumAkce(b) - datumAkce(a))
+      .slice(0, 10); // Posledních 10
+
+    // Formátování akce do čitelného textu
+    const formatAkce = (a) => {
+      const d = datumAkce(a);
+      const datumStr = d ? d.toLocaleDateString('cs-CZ', {day: 'numeric', month: 'long', year: 'numeric'}) : '?';
+      const cas = (a.start && a.end) ? ` (${a.start}–${a.end})` : '';
+      const misto = a.place ? `, ${a.place}` : '';
+      const pozn = a.note ? `, poznámka: ${a.note}` : '';
+      return `• ${a.name} – ${datumStr}${cas}${misto}${pozn}`;
+    };
+
+    // Program per akce (spojený s názvy skladeb)
+    const programPerAkce = (id_akce) => {
+      const skladby = program
+        .filter(p => p.id_akce === id_akce)
+        .sort((a, b) => a.order - b.order)
+        .map(p => {
+          const s = repertoar.find(r => r.id === p.song_id);
+          return s ? (s.name || s.nazev || s.title || p.song_id) : p.song_id;
+        });
+      return skladby.length ? `  Program: ${skladby.join(', ')}` : '';
+    };
+
+    // Docházka přihlášeného uživatele
+    const mojeDoc = dochazka
+      .filter(z => z.email === userEmail || z.updated_by === userEmail)
+      .map(z => {
+        const a = akce.find(a => a.id === z.id_akce);
+        const nazev = a ? a.name : z.id_akce;
+        const d = a ? datumAkce(a) : null;
+        const datumStr = d ? d.toLocaleDateString('cs-CZ', {day: 'numeric', month: 'long', year: 'numeric'}) : '?';
+        const duvod = z.reason ? `, důvod: ${z.reason}` : '';
+        return `• ${nazev} (${datumStr}): ${z.status || 'nezadáno'}${duvod}`;
+      })
+      .join('\n');
+
+    // Docházka ostatních per nadcházející akce
+    const docházkaAkci = nadchazejici.map(a => {
+      const zaznamy = dochazka.filter(z => z.id_akce === a.id);
+      if (!zaznamy.length) return '';
+      const d = datumAkce(a);
+      const datumStr = d ? d.toLocaleDateString('cs-CZ', {day: 'numeric', month: 'long', year: 'numeric'}) : '?';
+      const radky = zaznamy.map(z => {
+        const m = members.find(m => m.email === z.email || m.email === z.updated_by);
+        const jmeno = m ? (m.name || m.jmeno || z.email) : z.email;
+        const duvod = z.reason ? ` (${z.reason})` : '';
+        return `  ${jmeno}: ${z.status || 'nezadáno'}${duvod}`;
+      }).join('\n');
+      return `${a.name} – ${datumStr}:\n${radky}`;
+    }).filter(Boolean).join('\n\n');
+
+    // Členové
+    const clenoveSeznam = members.map(m =>
+      `• ${m.name || m.jmeno} (${m.email || ''}, hlas: ${m.voice || m.hlas || '?'}, role: ${m.role || '?'})`
+    ).join('\n');
+
+    // Sestavení kontextu
+    let context = '';
+
+    context += `=== NADCHÁZEJÍCÍ AKCE ===\n`;
+    context += nadchazejici.map(a => {
+      const prog = programPerAkce(a.id);
+      return formatAkce(a) + (prog ? '\n' + prog : '');
+    }).join('\n') || 'Žádné nadcházející akce.';
+
+    context += `\n\n=== PROBĚHLÉ AKCE (posledních 10) ===\n`;
+    context += probehle.map(formatAkce).join('\n') || 'Žádné.';
+
+    context += `\n\n=== MOJE DOCHÁZKA (${userEmail}) ===\n`;
+    context += mojeDoc || 'Žádné záznamy.';
+
+    context += `\n\n=== DOCHÁZKA NA NADCHÁZEJÍCÍ AKCE ===\n`;
+    context += docházkaAkci || 'Žádné záznamy.';
+
+    context += `\n\n=== ČLENOVÉ ===\n${clenoveSeznam}`;
+
+    context += `\n\n=== REPERTOÁR ===\n`;
+    context += repertoar.map(s => `• ${s.name || s.nazev || s.title || '?'} (${s.genre || s.zanr || '?'})`).join('\n');
+
+    context += `\n\n=== AKTUALITY ===\n${JSON.stringify(aktuality)}`;
+    context += `\n\n=== TODOS ===\n${JSON.stringify(todos)}`;
+    context += `\n\n=== GRILOVAČKA ===\n${JSON.stringify(grilovacka)}`;
+
+    return context.length > 120000
+      ? context.slice(0, 120000) + '\n... (zkráceno)'
       : context;
 
   } catch (e) {
