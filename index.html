@@ -573,12 +573,28 @@
     text-align: center;
   }
 
+    #loading-screen {
+    position: fixed;
+    inset: 0;
+    background: var(--bg);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 24px;
+    z-index: 200;
+  }
+  
+  .loading-logo svg { width: 48px; height: 48px; }
+  
+  .loading-dot-wrap { display: flex; gap: 6px; }
+
   /* ── LOGIN SCREEN ── */
   #login-screen {
     position: fixed;
     inset: 0;
     background: var(--bg);
-    display: flex;
+    display: none;
     align-items: center;
     justify-content: center;
     z-index: 100;
@@ -725,6 +741,25 @@
 </head>
 <body>
 
+ <!-- LOADING SCREEN -->
+<div id="loading-screen">
+  <div class="loading-logo">
+    <svg viewBox="0 0 24 24" fill="none" stroke="#EE220C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M9 18V5l12-2v13"/>
+      <circle cx="6" cy="18" r="3"/>
+      <circle cx="18" cy="16" r="3"/>
+    </svg>
+  </div>
+  <div class="loading-dot-wrap">
+    <div class="typing-dot"></div>
+    <div class="typing-dot"></div>
+    <div class="typing-dot"></div>
+  </div>
+</div>
+
+<!-- LOGIN SCREEN -->
+<div id="login-screen" style="display:none">
+ 
 <!-- LOGIN SCREEN -->
 <div id="login-screen">
   <div class="login-card">
@@ -1067,6 +1102,7 @@ document.getElementById('btn-google-login').addEventListener('click', async () =
 document.getElementById('btn-logout').addEventListener('click', () => signOut(auth));
 
 onAuthStateChanged(auth, user => {
+document.getElementById('loading-screen').style.display = 'none';
   currentUser = user;
   if (user) {
     $loginScreen.style.display = 'none';
