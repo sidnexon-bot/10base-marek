@@ -1090,6 +1090,19 @@ onAuthStateChanged(auth, user => {
     }
   }).catch(e => showToast('Chyba načítání klíče: ' + e.message));
 
+    // Allowlist – zkontroluj jestli je uživatel v members
+    get(ref(db, '/members')).then(snap => {
+      if (!snap.exists()) return;
+      const members = Object.values(snap.val()).filter(m => m);
+      const jeClen = members.some(m => 
+        m.email === user.email || m.updated_by === user.email
+      );
+      if (!jeClen) {
+        showToast('Přístup odepřen – nejsi členem 10men.');
+        setTimeout(() => signOut(auth), 2000);
+      }
+    }).catch(e => console.error('Chyba allowlist:', e));
+
     // Load chats
     loadChatList();
   } else {
