@@ -26,6 +26,19 @@
     --radius-sm: 8px;
   }
 
+    body.light {
+    --bg:        #f2f2f7;
+    --surface:   #ffffff;
+    --surface2:  #f0f0f5;
+    --border:    #d1d1d6;
+    --text:      #1c1c1e;
+    --text-dim:  #3a3a3c;
+    --text-muted:#8e8e93;
+    --user-bubble: #e5e5ea;
+    --marek-bubble: #d1f0d1;
+    --marek-accent: #a3d9a3;
+  }
+
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
   body {
@@ -225,6 +238,21 @@
     align-items: center;
     transition: color 0.12s;
   }
+
+  #btn-theme {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    transition: color 0.12s;
+  }
+  
+  #btn-theme:hover { color: var(--text); }
+  #btn-theme svg { width: 15px; height: 15px; }
 
   #btn-logout:hover { color: var(--accent); }
   #btn-logout svg { width: 15px; height: 15px; }
@@ -815,7 +843,23 @@
           <circle cx="12" cy="7" r="4"/>
         </svg>
       </div>
-      <span id="user-name">Nepřihlášen</span>
+        <span id="user-name">Nepřihlášen</span>
+          <button id="btn-theme" title="Přepnout motiv">
+            <svg id="icon-dark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+            </svg>
+            <svg id="icon-light" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none">
+              <circle cx="12" cy="12" r="5"/>
+              <line x1="12" y1="1" x2="12" y2="3"/>
+              <line x1="12" y1="21" x2="12" y2="23"/>
+              <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+              <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+              <line x1="1" y1="12" x2="3" y2="12"/>
+              <line x1="21" y1="12" x2="23" y2="12"/>
+              <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+              <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+            </svg>
+          </button>
       <button id="btn-logout" title="Odhlásit se">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
@@ -1652,6 +1696,25 @@ function showToast(msg) {
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => $toast.classList.remove('show'), 4000);
 }
+
+// Theme toggle
+  const $btnTheme = document.getElementById('btn-theme');
+  const $iconDark = document.getElementById('icon-dark');
+  const $iconLight = document.getElementById('icon-light');
+
+// Načti uložené nastavení
+  if (localStorage.getItem('marek_theme') === 'light') {
+    document.body.classList.add('light');
+    $iconDark.style.display = 'none';
+    $iconLight.style.display = 'block';
+  }
+
+  $btnTheme.addEventListener('click', () => {
+    const isLight = document.body.classList.toggle('light');
+    $iconDark.style.display = isLight ? 'none' : 'block';
+    $iconLight.style.display = isLight ? 'block' : 'none';
+    localStorage.setItem('marek_theme', isLight ? 'light' : 'dark');
+  });
 
 // iOS keyboard fix
 if (/iPhone|iPad/.test(navigator.userAgent)) {
