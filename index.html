@@ -1526,6 +1526,16 @@ async function fetchDbContext(userEmail) {
     console.log("Kontext délka:", context.length);
     console.log("Kontext preview:", context.slice(0, 500));
 
+    // DEBUG – smaž po použití
+    const debugStats = { iso: 0, longString: [], placeholder: [], prazdne: [] };
+    akce.forEach(a => {
+      if (!a.date || a.date === '') debugStats.prazdne.push(a.id);
+      else if (a.date.startsWith('[')) debugStats.placeholder.push({id: a.id, date: a.date});
+      else if (a.date.match(/^\d{4}-\d{2}-\d{2}/)) debugStats.iso++;
+      else debugStats.longString.push({id: a.id, date: a.date});
+    });
+    console.log('DEBUG akce formáty:', debugStats);
+
     return context.length > 120000
       ? context.slice(0, 120000) + '\n... (zkráceno)'
       : context;
