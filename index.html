@@ -1444,6 +1444,9 @@ async function fetchDbContext(userEmail) {
       .sort((a, b) => datumAkce(b) - datumAkce(a))
       .slice(0, 10);
 
+    const bezData = akce
+      .filter(a => !datumAkce(a));
+
     const formatAkce = (a) => {
       const d = datumAkce(a);
       const datumStr = d ? d.toLocaleDateString('cs-CZ', {day: 'numeric', month: 'long', year: 'numeric'}) : '?';
@@ -1505,6 +1508,9 @@ async function fetchDbContext(userEmail) {
 
     context += `\n\n=== PROBĚHLÉ AKCE (posledních 10) ===\n`;
     context += probehle.map(formatAkce).join('\n') || 'Žádné.';
+
+    context += `\n\n=== AKCE BEZ DATA (plánované, termín neurčen) ===\n`;
+    context += bezData.map(a => `• ${a.name || '?'}${a.note ? ', poznámka: ' + a.note : ''}`).join('\n') || 'Žádné.';
 
     context += `\n\n=== MOJE DOCHÁZKA (${userEmail}) ===\n`;
     context += mojeDoc || 'Žádné záznamy.';
