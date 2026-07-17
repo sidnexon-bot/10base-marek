@@ -259,43 +259,42 @@ if (localStorage.getItem(SESSION_KEY)) {
   $login.classList.add('visible');
 }
 
+async function processAuthUser(user) {
+  const snap = await get(ref(db, '/members'));
+  if (!snap.exists()) {
+    throw new Error('access-denied');
+  }
+
+  const members = Object.values(snap.val()).filter(m => m);
+  const member = members.find(m => m.email === user.email);
+
+  if (!member) {
+    throw new Error('access-denied');
+  }
+
+  localStorage.setItem(SESSION_KEY, JSON.stringify({
+    email:    member.email,
+    name:     member.name,
+    role:     member.role || null,
+    voice:    member.voice || null,
+    photoURL: user.photoURL || null,
+    success:  true
+  }));
+
+  window.location.replace('index.html');
+}
+
 $btn.addEventListener('click', async () => {
   $btn.disabled = true;
   const provider = new GoogleAuthProvider();
 
   try {
     const result = await signInWithPopup(auth, provider);
-    const user = result.user;
-
-    const snap = await get(ref(db, '/members'));
-    if (!snap.exists()) {
-      throw new Error('access-denied');
-    }
-
-    const members = Object.values(snap.val()).filter(m => m);
-    const member = members.find(m => m.email === user.email);
-
-    if (!member) {
-      throw new Error('access-denied');
-    }
-
-    localStorage.setItem(SESSION_KEY, JSON.stringify({
-      email:    member.email,
-      name:     member.name,
-      role:     member.role || null,
-      voice:    member.voice || null,
-      photoURL: user.photoURL || null,
-      success:  true
-    }));
-
-    window.location.replace('index.html');
-
+    await processAuthUser(result.user);
   } catch (e) {
     if (e.message === 'access-denied') {
       showToast('Přístup odepřen – nejsi členem 10men.');
       await signOut(auth).catch(() => {});
-    } else if (e.code === 'auth/popup-closed-by-user' || e.code === 'auth/cancelled-popup-request') {
-      // uživatel popup sám zavřel, netřeba strašit chybou
     } else {
       showToast('Přihlášení selhalo: ' + (e.message || e.code || 'neznámá chyba'));
     }
