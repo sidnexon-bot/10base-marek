@@ -1153,67 +1153,67 @@ getRedirectResult(auth).then(result => {
 
 let redirectHandled = false;
 
-onAuthStateChanged(auth, async user => {
-  // Počkej na výsledek redirectu před zobrazením login screenu
-  if (!redirectHandled) {
-    redirectHandled = true;
-    // Krátká pauza aby Firebase stihla zpracovat redirect session
-    await new Promise(r => setTimeout(r, 500));
+// Nejdřív vyřeš redirect, pak spusť auth listener
+getRedirectResult(auth).then(result => {
+  if (result?.user) {
+    console.log('Redirect OK:', result.user.email);
   }
-
-  document.getElementById('loading-screen').style.display = 'none';
-  currentUser = user;
-  if (user) {
-    userPhotoURL = user.photoURL;
-    if (user.photoURL) {
-      $userAvatar.innerHTML = `<img src="${user.photoURL}" alt="">`;
-    }
-    $userName.textContent = user.displayName || user.email;
-
-    // Nejdřív allowlist, pak vše ostatní
-    get(ref(db, '/members')).then(snap => {
-      if (!snap.exists()) {
-        showToast('Přístup odepřen.');
-        setTimeout(() => signOut(auth), 2000);
-        return;
+}).catch(e => {
+  console.error('Redirect chyba:', e);
+}).finally(() => {
+  // Až je redirect vyřešen, spusť normální auth listener
+  onAuthStateChanged(auth, user => {
+    document.getElementById('loading-screen').style.display = 'none';
+    currentUser = user;
+    if (user) {
+      userPhotoURL = user.photoURL;
+      if (user.photoURL) {
+        $userAvatar.innerHTML = `<img src="${user.photoURL}" alt="">`;
       }
+      $userName.textContent = user.displayName || user.email;
 
-      const members = Object.values(snap.val()).filter(m => m);
-      const jeClen = members.some(m => m.email === user.email);
-
-      if (!jeClen) {
-        showToast('Přístup odepřen – nejsi členem 10men.');
-        setTimeout(() => signOut(auth), 2000);
-        return;
-      }
-
-      // Člen ověřen – zobraz app
-      $loginScreen.style.display = 'none';
-      $input.disabled = false;
-      updateSendBtn();
-
-      // Načti API klíč
-      get(ref(db, 'gemini_config/apiKey')).then(snapshot => {
-        if (snapshot.exists()) {
-          geminiApiKeyFromDb = snapshot.val();
-        } else {
-          showToast('Chyba: Gemini klíč nenalezen v DB.');
+      get(ref(db, '/members')).then(snap => {
+        if (!snap.exists()) {
+          showToast('Přístup odepřen.');
+          setTimeout(() => signOut(auth), 2000);
+          return;
         }
-      }).catch(e => showToast('Chyba načítání klíče: ' + e.message));
 
-      loadChatList();
+        const members = Object.values(snap.val()).filter(m => m);
+        const jeClen = members.some(m => m.email === user.email);
 
-    }).catch(e => {
-      showToast('Chyba ověření přístupu: ' + e.message);
-      setTimeout(() => signOut(auth), 2000);
-    });
+        if (!jeClen) {
+          showToast('Přístup odepřen – nejsi členem 10men.');
+          setTimeout(() => signOut(auth), 2000);
+          return;
+        }
 
-  } else {
-    $loginScreen.style.display = 'flex';
-    $input.disabled = true;
-    $btnSend.disabled = true;
-    geminiApiKeyFromDb = null;
-  }
+        $loginScreen.style.display = 'none';
+        $input.disabled = false;
+        updateSendBtn();
+
+        get(ref(db, 'gemini_config/apiKey')).then(snapshot => {
+          if (snapshot.exists()) {
+            geminiApiKeyFromDb = snapshot.val();
+          } else {
+            showToast('Chyba: Gemini klíč nenalezen v DB.');
+          }
+        }).catch(e => showToast('Chyba načítání klíče: ' + e.message));
+
+        loadChatList();
+
+      }).catch(e => {
+        showToast('Chyba ověření přístupu: ' + e.message);
+        setTimeout(() => signOut(auth), 2000);
+      });
+
+    } else {
+      $loginScreen.style.display = 'flex';
+      $input.disabled = true;
+      $btnSend.disabled = true;
+      geminiApiKeyFromDb = null;
+    }
+  });
 });
 
 // ── MODE TOGGLE ──────────────────────────────────────────────────────
