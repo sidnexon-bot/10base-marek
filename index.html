@@ -420,7 +420,7 @@
   .msg {
     display: flex;
     gap: 12px;
-    align-items: flex-start;
+    align-items: flex-end;
   }
 
   .msg.user { flex-direction: row-reverse; }
@@ -480,14 +480,14 @@
     background: var(--marek-bubble);
     border: 1px solid var(--marek-accent);
     color: var(--text);
-    border-radius: var(--radius) var(--radius) var(--radius) 4px;
+    border-radius: var(--radius);
   }
 
   .msg.user .msg-bubble {
     background: var(--user-bubble);
     border: 1px solid var(--border);
     color: var(--text);
-    border-radius: var(--radius) var(--radius) 4px var(--radius);
+    border-radius: var(--radius);
   }
 
   /* Markdown in bubbles */
