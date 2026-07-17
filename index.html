@@ -1129,7 +1129,12 @@ const $toast          = document.getElementById('toast');
 document.getElementById('btn-google-login').addEventListener('click', async () => {
   const provider = new GoogleAuthProvider();
   try {
-    await signInWithPopup(auth, provider);
+    // V PWA standalone použij redirect místo popup
+    if (window.navigator.standalone) {
+      await signInWithRedirect(auth, provider);
+    } else {
+      await signInWithPopup(auth, provider);
+    }
   } catch (e) {
     showToast('Přihlášení selhalo: ' + e.message);
   }
