@@ -237,6 +237,7 @@
     height: 100dvh;
     overflow: hidden;
     background: var(--bg);
+    will-change: transform;
   }
 
   /* ── TOPBAR ── */
@@ -1654,12 +1655,23 @@ function showToast(msg) {
 
 // iOS keyboard fix
 if (/iPhone|iPad/.test(navigator.userAgent)) {
-  const inputArea = document.getElementById('input-area');
+  const main = document.getElementById('main');
   
   window.visualViewport.addEventListener('resize', () => {
-    const offsetFromBottom = window.innerHeight - window.visualViewport.height - window.visualViewport.offsetTop;
-    inputArea.style.paddingBottom = Math.max(20, offsetFromBottom) + 'px';
+    const height = window.visualViewport.height;
+    const offsetTop = window.visualViewport.offsetTop;
+    
+    main.style.position = 'fixed';
+    main.style.top = offsetTop + 'px';
+    main.style.left = '0';
+    main.style.right = '0';
+    main.style.height = height + 'px';
+    
     scrollToBottom();
+  });
+
+  window.visualViewport.addEventListener('scroll', () => {
+    main.style.top = window.visualViewport.offsetTop + 'px';
   });
 }
   
