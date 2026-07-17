@@ -1143,13 +1143,24 @@ document.getElementById('btn-google-login').addEventListener('click', async () =
 document.getElementById('btn-logout').addEventListener('click', () => signOut(auth));
 
 // Zpracuj redirect výsledek po návratu z Google (PWA)
-getRedirectResult(auth).catch(e => {
-  if (e.code !== 'auth/no-current-user') {
-    showToast('Přihlášení selhalo: ' + e.message);
+getRedirectResult(auth).then(result => {
+  if (result?.user) {
+    console.log('Redirect přihlášení OK:', result.user.email);
   }
+}).catch(e => {
+  console.error('Redirect chyba:', e);
 });
 
-onAuthStateChanged(auth, user => {
+let redirectHandled = false;
+
+onAuthStateChanged(auth, async user => {
+  // Počkej na výsledek redirectu před zobrazením login screenu
+  if (!redirectHandled) {
+    redirectHandled = true;
+    // Krátká pauza aby Firebase stihla zpracovat redirect session
+    await new Promise(r => setTimeout(r, 500));
+  }
+
   document.getElementById('loading-screen').style.display = 'none';
   currentUser = user;
   if (user) {
