@@ -1142,6 +1142,13 @@ document.getElementById('btn-google-login').addEventListener('click', async () =
 
 document.getElementById('btn-logout').addEventListener('click', () => signOut(auth));
 
+// Zpracuj redirect výsledek po návratu z Google (PWA)
+getRedirectResult(auth).catch(e => {
+  if (e.code !== 'auth/no-current-user') {
+    showToast('Přihlášení selhalo: ' + e.message);
+  }
+});
+
 onAuthStateChanged(auth, user => {
   document.getElementById('loading-screen').style.display = 'none';
   currentUser = user;
