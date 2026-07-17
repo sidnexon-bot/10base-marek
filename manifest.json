@@ -1,8 +1,7 @@
 {
   "name": "Marek – 10men AI",
   "short_name": "Marek",
-  "start_url": "/",
-  "scope": "/",
+  "start_url": "index.html",
   "display": "standalone",
   "background_color": "#111111",
   "theme_color": "#EE220C",
