@@ -1138,45 +1138,53 @@ document.getElementById('btn-google-login').addEventListener('click', async () =
 document.getElementById('btn-logout').addEventListener('click', () => signOut(auth));
 
 onAuthStateChanged(auth, user => {
-document.getElementById('loading-screen').style.display = 'none';
+  document.getElementById('loading-screen').style.display = 'none';
   currentUser = user;
   if (user) {
-    $loginScreen.style.display = 'none';
     userPhotoURL = user.photoURL;
-
-    // Avatar
     if (user.photoURL) {
       $userAvatar.innerHTML = `<img src="${user.photoURL}" alt="">`;
     }
     $userName.textContent = user.displayName || user.email;
 
-    // Unlock input
-    $input.disabled = false;
-    updateSendBtn();
-
-    get(ref(db, 'gemini_config/apiKey')).then(snapshot => {
-    if (snapshot.exists()) {
-      geminiApiKeyFromDb = snapshot.val();
-    } else {
-      showToast('Chyba: Gemini klíč nenalezen v DB.');
-    }
-  }).catch(e => showToast('Chyba načítání klíče: ' + e.message));
-
-    // Allowlist – zkontroluj jestli je uživatel v members
+    // Nejdřív allowlist, pak vše ostatní
     get(ref(db, '/members')).then(snap => {
-      if (!snap.exists()) return;
+      if (!snap.exists()) {
+        showToast('Přístup odepřen.');
+        setTimeout(() => signOut(auth), 2000);
+        return;
+      }
+
       const members = Object.values(snap.val()).filter(m => m);
-      const jeClen = members.some(m => 
-        m.email === user.email || m.updated_by === user.email
-      );
+      const jeClen = members.some(m => m.email === user.email);
+
       if (!jeClen) {
         showToast('Přístup odepřen – nejsi členem 10men.');
         setTimeout(() => signOut(auth), 2000);
+        return;
       }
-    }).catch(e => console.error('Chyba allowlist:', e));
 
-    // Load chats
-    loadChatList();
+      // Člen ověřen – zobraz app
+      $loginScreen.style.display = 'none';
+      $input.disabled = false;
+      updateSendBtn();
+
+      // Načti API klíč
+      get(ref(db, 'gemini_config/apiKey')).then(snapshot => {
+        if (snapshot.exists()) {
+          geminiApiKeyFromDb = snapshot.val();
+        } else {
+          showToast('Chyba: Gemini klíč nenalezen v DB.');
+        }
+      }).catch(e => showToast('Chyba načítání klíče: ' + e.message));
+
+      loadChatList();
+
+    }).catch(e => {
+      showToast('Chyba ověření přístupu: ' + e.message);
+      setTimeout(() => signOut(auth), 2000);
+    });
+
   } else {
     $loginScreen.style.display = 'flex';
     $input.disabled = true;
