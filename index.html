@@ -1095,6 +1095,7 @@ const SESSION_KEY = 'marek_user';
 const sessionRaw = localStorage.getItem(SESSION_KEY);
 if (!sessionRaw) {
   window.location.replace('login.html');
+  throw new Error('no-session'); // zastaví běh skriptu — location.replace() sám o sobě nestačí
 }
 let session = null;
 try {
@@ -1102,6 +1103,7 @@ try {
 } catch (e) {
   localStorage.removeItem(SESSION_KEY);
   window.location.replace('login.html');
+  throw new Error('corrupt-session');
 }
 
 // ── DOM ─────────────────────────────────────────────────────────────
