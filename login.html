@@ -212,7 +212,7 @@
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getAuth, GoogleAuthProvider, signInWithPopup, signOut }
+import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, signOut }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import { getDatabase, ref, get }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
@@ -251,13 +251,22 @@ function showToast(msg) {
 }
 
 // Pokud už existuje platná session v localStorage, appka nemá co dělat tady
-// (chrání to i proti tomu, že by uživatel omylem otevřel login.html znovu)
 if (localStorage.getItem(SESSION_KEY)) {
   window.location.replace('index.html');
-} else {
-  $loading.style.display = 'none';
-  $login.classList.add('visible');
 }
+// Jinak login screen zůstává schovaný, dokud níže neověříme, že se
+// uživatel nevrací z Google OAuth redirectu.
+
+// ZDOKUMENTOVANÝ Firebase Auth bug (firebase-js-sdk #6716, Apple Developer
+// fóra): signInWithPopup na iOS standalone PWA proběhne úspěšně na pozadí,
+// ale Promise se nikdy nevrátí zpět do JS — bez chyby, appka jen visí.
+// Oficiálně doporučené řešení: signInWithRedirect.
+//
+// DŮLEŽITÉ: na Androidu popup prokazatelně funguje (ověřeno v praxi), takže
+// se redirect použije JEN na iOS (navigator.standalone), ne obecně přes
+// matchMedia('display-mode: standalone') — to by zbytečně měnilo chování
+// i na Androidu, kde není co opravovat.
+const isStandalone = window.navigator.standalone === true
 
 async function processAuthUser(user) {
   const snap = await get(ref(db, '/members'));
@@ -284,20 +293,49 @@ async function processAuthUser(user) {
   window.location.replace('index.html');
 }
 
+async function handleAuthError(e) {
+  if (e.message === 'access-denied') {
+    showToast('Přístup odepřen – nejsi členem 10men.');
+    await signOut(auth).catch(() => {});
+  } else if (e.code === 'auth/popup-closed-by-user' || e.code === 'auth/cancelled-popup-request') {
+    // uživatel popup sám zavřel, netřeba strašit chybou
+  } else {
+    showToast('Přihlášení selhalo: ' + (e.message || e.code || 'neznámá chyba'));
+  }
+}
+
+// Musí se volat při každém načtení login.html — pokud žádný redirect
+// neprobíhá, vrátí null a nic se nestane. Pokud se uživatel právě vrátil
+// z Google OAuth redirectu, tady se přihlášení dokončí.
+(async () => {
+  try {
+    const result = await getRedirectResult(auth);
+    if (result && result.user) {
+      await processAuthUser(result.user);
+      return;
+    }
+  } catch (e) {
+    await handleAuthError(e);
+  }
+  $loading.style.display = 'none';
+  $login.classList.add('visible');
+})();
+
 $btn.addEventListener('click', async () => {
   $btn.disabled = true;
   const provider = new GoogleAuthProvider();
 
   try {
-    const result = await signInWithPopup(auth, provider);
-    await processAuthUser(result.user);
-  } catch (e) {
-    if (e.message === 'access-denied') {
-      showToast('Přístup odepřen – nejsi členem 10men.');
-      await signOut(auth).catch(() => {});
+    if (isStandalone) {
+      // Stránka se přesměruje pryč a zpět — zpracování proběhne
+      // v getRedirectResult() bloku výše po návratu.
+      await signInWithRedirect(auth, provider);
     } else {
-      showToast('Přihlášení selhalo: ' + (e.message || e.code || 'neznámá chyba'));
+      const result = await signInWithPopup(auth, provider);
+      await processAuthUser(result.user);
     }
+  } catch (e) {
+    await handleAuthError(e);
     $btn.disabled = false;
   }
 });
