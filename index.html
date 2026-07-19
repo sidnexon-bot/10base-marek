@@ -1530,8 +1530,8 @@ async function fetchDbContext(userEmail) {
     }).filter(Boolean).join('\n\n');
 
     const clenoveSeznam = members.map(m =>
-      `• ${m.name || m.jmeno || '?'} – email: ${m.email || '?'}, hlas: ${m.voice || m.hlas || '?'}
-    ).join('\n');
+      `• ${m.name || m.jmeno || '?'} – email: ${m.email || '?'}, hlas: ${m.voice || m.hlas || '?'}`
+        ).join('\n');
 
     let context = '';
 
