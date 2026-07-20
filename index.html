@@ -1532,7 +1532,7 @@ async function fetchDbContext(userEmail) {
     }).filter(Boolean).join('\n\n');
 
     const clenoveSeznam = members.map(m =>
-      `• ${m.name || m.jmeno || '?'} – email: ${m.email || '?'}, hlas: ${m.voice || m.hlas || '?'}, role: ${m.role || '?'}`
+      `• ${m.name || m.jmeno || '?'} – email: ${m.email || '?'}, hlas: ${m.voice || m.hlas || '?'}`
     ).join('\n');
 
     let context = '';
@@ -1559,7 +1559,7 @@ async function fetchDbContext(userEmail) {
 
     context += `\n\n=== REPERTOÁR ===\n`;
     context += repertoar.map(s =>
-      `• ${s.name || s.nazev || s.title || '?'} (${s.genre || s.zanr || '?'})`
+      `• ${s.name || '?'} – autor: ${s.author || '?'}${s.text_by && s.text_by !== s.author ? ', text: ' + s.text_by : ''}${s.arranged_by ? ', arr: ' + s.arranged_by : ''} (${s.genre || s.zanr || '?'}, ${s.status || '?'})`
     ).join('\n');
 
     context += `\n\n=== AKTUALITY ===\n${JSON.stringify(aktuality)}`;
