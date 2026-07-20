@@ -266,11 +266,7 @@ if (localStorage.getItem(SESSION_KEY)) {
 // se redirect použije JEN na iOS (navigator.standalone), ne obecně přes
 // matchMedia('display-mode: standalone') — to by zbytečně měnilo chování
 // i na Androidu, kde není co opravovat.
-// DOČASNÝ TEST: vynuceno na false, ať appka i na iOS standalone zkusí popup
-// místo redirectu — ověřujeme, jestli popup na tomhle zařízení/appce
-// nefunguje fakt vždycky, nebo jen v redirect větvi něco chybí.
-// Až test dopadne, vrátit zpět na: window.navigator.standalone === true
-const isStandalone = false
+const isStandalone = window.navigator.standalone === true
 
 async function processAuthUser(user) {
   const snap = await get(ref(db, '/members'));
