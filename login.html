@@ -212,7 +212,7 @@
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-app.js";
-import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, signOut }
+import { getAuth, signInWithCustomToken, signOut }
   from "https://www.gstatic.com/firebasejs/12.14.0/firebase-auth.js";
 import { getDatabase, ref, get }
   from "https://www.gstatic.com/firebasejs/12.14.0/firebase-database.js";
@@ -229,6 +229,14 @@ const FIREBASE_CONFIG = {
 };
 
 const SESSION_KEY = 'marek_user';
+
+// Custom Token OAuth flow — stejná cesta pro úplně všechny platformy
+// (iOS PWA, Android, desktop, Safari tab). Žádný signInWithPopup ani
+// signInWithRedirect na klientovi — celá OAuth výměna s Googlem se
+// odehrává na serveru (Cloud Function marekAuthStart/marekAuthCallback),
+// appka sem dostane už jen hotový token přes URL parametr. Viz
+// TenOrbit-roadmapa.md, sekce "Known issue — Marek iOS PWA login".
+const AUTH_START_URL = 'https://us-central1-base-39f52.cloudfunctions.net/marekAuthStart';
 
 const app  = initializeApp(FIREBASE_CONFIG);
 const auth = getAuth(app);
@@ -249,24 +257,6 @@ function showToast(msg) {
   $toast.classList.add('show');
   setTimeout(() => $toast.classList.remove('show'), 3500);
 }
-
-// Pokud už existuje platná session v localStorage, appka nemá co dělat tady
-if (localStorage.getItem(SESSION_KEY)) {
-  window.location.replace('index.html');
-}
-// Jinak login screen zůstává schovaný, dokud níže neověříme, že se
-// uživatel nevrací z Google OAuth redirectu.
-
-// ZDOKUMENTOVANÝ Firebase Auth bug (firebase-js-sdk #6716, Apple Developer
-// fóra): signInWithPopup na iOS standalone PWA proběhne úspěšně na pozadí,
-// ale Promise se nikdy nevrátí zpět do JS — bez chyby, appka jen visí.
-// Oficiálně doporučené řešení: signInWithRedirect.
-//
-// DŮLEŽITÉ: na Androidu popup prokazatelně funguje (ověřeno v praxi), takže
-// se redirect použije JEN na iOS (navigator.standalone), ne obecně přes
-// matchMedia('display-mode: standalone') — to by zbytečně měnilo chování
-// i na Androidu, kde není co opravovat.
-const isStandalone = window.navigator.standalone === true
 
 async function processAuthUser(user) {
   const snap = await get(ref(db, '/members'));
@@ -293,51 +283,68 @@ async function processAuthUser(user) {
   window.location.replace('index.html');
 }
 
-async function handleAuthError(e) {
-  if (e.message === 'access-denied') {
-    showToast('Přístup odepřen – nejsi členem 10men.');
-    await signOut(auth).catch(() => {});
-  } else if (e.code === 'auth/popup-closed-by-user' || e.code === 'auth/cancelled-popup-request') {
-    // uživatel popup sám zavřel, netřeba strašit chybou
-  } else {
-    showToast('Přihlášení selhalo: ' + (e.message || e.code || 'neznámá chyba'));
+function friendlyError(code) {
+  switch (code) {
+    case 'access_denied': return 'Přístup odepřen – nejsi členem 10men.';
+    case 'invalid_state':  return 'Přihlášení vypršelo, zkus to prosím znovu.';
+    default: return 'Přihlášení selhalo (' + code + '). Zkus to prosím znovu.';
   }
 }
 
-// Musí se volat při každém načtení login.html — pokud žádný redirect
-// neprobíhá, vrátí null a nic se nestane. Pokud se uživatel právě vrátil
-// z Google OAuth redirectu, tady se přihlášení dokončí.
-(async () => {
-  try {
-    const result = await getRedirectResult(auth);
-    if (result && result.user) {
+async function init() {
+  // Pokud už existuje platná session, appka tu nemá co dělat
+  if (localStorage.getItem(SESSION_KEY)) {
+    window.location.replace('index.html');
+    return;
+  }
+
+  const params = new URLSearchParams(window.location.search);
+  const token = params.get('token');
+  const error = params.get('error');
+
+  // Ať token/error nezůstane viset v URL historii prohlížeče
+  if (token || error) {
+    window.history.replaceState({}, '', window.location.pathname);
+  }
+
+  if (error) {
+    showToast(friendlyError(error));
+    $loading.style.display = 'none';
+    $login.classList.add('visible');
+    return;
+  }
+
+  if (token) {
+    // Vrátili jsme se z Cloud Function s hotovým Custom Tokenem
+    try {
+      const result = await signInWithCustomToken(auth, token);
       await processAuthUser(result.user);
+      return; // processAuthUser přesměruje na index.html
+    } catch (e) {
+      if (e.message === 'access-denied') {
+        showToast('Přístup odepřen – nejsi členem 10men.');
+        await signOut(auth).catch(() => {});
+      } else {
+        showToast('Přihlášení selhalo: ' + (e.message || e.code || 'neznámá chyba'));
+      }
+      $loading.style.display = 'none';
+      $login.classList.add('visible');
       return;
     }
-  } catch (e) {
-    await handleAuthError(e);
   }
+
+  // Žádná session, žádný token, žádná chyba → normální zobrazení login tlačítka
   $loading.style.display = 'none';
   $login.classList.add('visible');
-})();
+}
 
-$btn.addEventListener('click', async () => {
+init();
+
+$btn.addEventListener('click', () => {
   $btn.disabled = true;
-  const provider = new GoogleAuthProvider();
-
-  try {
-    if (isStandalone) {
-      // Stránka se přesměruje pryč a zpět — zpracování proběhne
-      // v getRedirectResult() bloku výše po návratu.
-      await signInWithRedirect(auth, provider);
-    } else {
-      const result = await signInWithPopup(auth, provider);
-      await processAuthUser(result.user);
-    }
-  } catch (e) {
-    await handleAuthError(e);
-    $btn.disabled = false;
-  }
+  // Plná navigace (ne fetch) — appka opustí stránku, projde OAuth na
+  // serveru, a Cloud Function ji pošle zpátky sem s ?token=...
+  window.location.href = AUTH_START_URL;
 });
 </script>
 
