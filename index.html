@@ -1082,8 +1082,8 @@ const db   = getDatabase(app);
 
 // ── STATE ───────────────────────────────────────────────────────────
 let currentUser   = null;
-let geminiApiKeyFromDb = null;
-const GEMINI_MODEL = "openai/gpt-4o-mini";
+// AI volá Cloud Function chatMarek — API klíč zůstává na serveru (/gemini_config je pro klienty zavřený)
+const CHAT_MAREK_URL = "https://chatmarek-etp6s2ynnq-uc.a.run.app";
 let currentChatId = null;
 let currentMode   = 'safe'; // 'safe' | 'internet'
 let messages      = [];     // [{role, content}]
@@ -1173,14 +1173,6 @@ onAuthStateChanged(auth, user => {
   // aktivní, teprve teď se povolí psaní zpráv.
   $input.disabled = false;
   updateSendBtn();
-
-  get(ref(db, 'gemini_config/apiKey')).then(snapshot => {
-    if (snapshot.exists()) {
-      geminiApiKeyFromDb = snapshot.val();
-    } else {
-      showToast('Chyba: Gemini klíč nenalezen v DB.');
-    }
-  }).catch(e => showToast('Chyba načítání klíče: ' + e.message));
 
   loadChatList();
 });
@@ -1389,37 +1381,25 @@ async function sendMessage() {
       }
     };
 
-    if (!geminiApiKeyFromDb) throw new Error('API klíč ještě nebyl načten.');
-    const cleanApiKey = geminiApiKeyFromDb.trim();
-    
-    const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    const idToken = await auth.currentUser.getIdToken();
+    const res = await fetch(CHAT_MAREK_URL, {
       method: 'POST',
-      credentials: 'omit',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${cleanApiKey}`
+        'Authorization': `Bearer ${idToken}`
       },
       body: JSON.stringify({
-        model: GEMINI_MODEL,
-        messages: [
-          { role: "system", content: systemPrompt },
-          ...messages.map(m => ({
-            role: m.role === 'model' ? 'assistant' : 'user',
-            content: m.content
-          }))
-        ],
-        temperature: 0.85,
-        max_tokens: 2048
+        systemPrompt,
+        messages: messages.map(m => ({
+          role: m.role === 'model' ? 'assistant' : 'user',
+          content: m.content
+        }))
       })
     });
-    
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.error?.message || 'Chyba API');
-    }
-    
-    const data = await res.json();
-    const reply = data.choices?.[0]?.message?.content || '…';
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || 'Chyba API');
+    const reply = data.reply || '…';
 
     // Remove typing, add reply
     typingEl.remove();
