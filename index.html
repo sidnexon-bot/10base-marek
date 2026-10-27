@@ -21,6 +21,13 @@
     --user-bubble: #2a2a2a;
     --marek-bubble: #2a1a1a;
     --marek-accent: #4a2020;
+    --bubble-in:        #27272a;
+    --bubble-in-text:   #f1f1f3;
+    --bubble-out:       #EE220C;
+    --bubble-out-text:  #ffffff;
+    --glass:            rgba(17, 17, 17, 0.78);
+    --ring:             rgba(238, 34, 12, 0.35);
+    --shadow-card:      0 6px 18px rgba(0, 0, 0, 0.22);
     --sidebar-w: 260px;
     --radius:    12px;
     --radius-sm: 8px;
@@ -37,6 +44,11 @@
     --user-bubble: #e5e5ea;
     --marek-bubble: #fde8e8;
     --marek-accent: #f5c0c0;
+    --bubble-in:        #e9e9ee;
+    --bubble-in-text:   #1c1c1e;
+    --glass:            rgba(242, 242, 247, 0.82);
+    --ring:             rgba(238, 34, 12, 0.28);
+    --shadow-card:      0 4px 14px rgba(0, 0, 0, 0.07);
   }
 
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -725,6 +737,37 @@
   .mk-warn { margin-top: 8px; font-size: 12px; color: #e0a64a; }
   .mk-empty { color: var(--text-dim); font-size: 13px; text-align: center; padding: 16px 0; }
   .mk-section-title { font-size: 12px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-dim); margin: 22px 0 10px; }
+  .mk-status { padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; border: 1px solid var(--border); color: var(--text-dim); }
+  .mk-status.s-rozpracovano { color: #6aa9ff; border-color: #2c4a73; }
+  .mk-status.s-ke_schvaleni { color: #e0a64a; border-color: #6b4f1c; }
+  .mk-status.s-hotovo { color: #5cc98a; border-color: #245a3c; }
+  .mk-status.s-archiv { color: var(--text-muted); }
+  .mk-sub { margin: -4px 0 10px; }
+  .mk-filters { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 12px; }
+  .mk-filters button { background: var(--surface); border: 1px solid var(--border); border-radius: 999px; padding: 5px 12px; color: var(--text-dim); font-family: inherit; font-size: 12px; cursor: pointer; }
+  .mk-filters button.active { border-color: var(--accent); color: var(--accent); }
+  .mk-draft-actions button.on { background: var(--border); }
+  .mk-card .mk-status-sel { width: auto; padding: 8px 10px; font-size: 13px; margin-left: auto; }
+  .mk-panel { margin-top: 12px; }
+  .mk-panel:empty { display: none; }
+  .mk-panel textarea { min-height: 120px; }
+  .mk-panel .mk-com-input, .mk-panel .mk-refine { min-height: 64px; }
+  .mk-panel-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; align-items: center; }
+  .mk-panel-actions button { background: var(--surface2); border: none; border-radius: var(--radius-sm); padding: 8px 12px; color: var(--text); font-family: inherit; font-size: 13px; cursor: pointer; }
+  .mk-panel-actions button.primary { background: var(--accent); color: #fff; font-weight: 600; }
+  .mk-panel-actions button:disabled { opacity: 0.5; cursor: not-allowed; }
+  .mk-panel-actions .mk-hint { font-size: 12px; color: var(--text-dim); }
+  .mk-inline-err { color: #e0574a; font-size: 12px; margin-top: 6px; }
+  .mk-ver, .mk-com { border-top: 1px solid var(--border); padding: 10px 0; font-size: 13px; line-height: 1.5; overflow-wrap: anywhere; }
+  .mk-ver:first-child, .mk-com:first-child { border-top: none; padding-top: 0; }
+  .mk-ver-head, .mk-com-head { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; font-size: 12px; color: var(--text-dim); }
+  .mk-ver-head strong, .mk-com-head strong { color: var(--text); }
+  .mk-ver-head .mk-ver-btns { margin-left: auto; display: flex; gap: 6px; }
+  .mk-ver-btns button { background: var(--surface2); border: none; border-radius: 6px; padding: 4px 10px; color: var(--text); font-family: inherit; font-size: 12px; cursor: pointer; }
+  .mk-ver-text { white-space: pre-wrap; overflow-wrap: anywhere; font-family: inherit; font-size: 13px; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px; margin: 8px 0 0; }
+  .mk-com.sys { color: var(--text-dim); font-size: 12px; font-style: italic; }
+  .mk-flash { animation: mkflash 1.6s ease-out; }
+  @keyframes mkflash { 0% { box-shadow: 0 0 0 2px var(--accent); } 100% { box-shadow: 0 0 0 0 transparent; } }
 
   .input-hint {
     max-width: 720px;
@@ -898,6 +941,108 @@
     0%, 100% { opacity: 0.3; }
     50% { opacity: 1; }
   }
+
+  /* ═══════════════════════════════════════════════════════════════
+     REDESIGN – bubliny jako v Messengeru, odeslané v červené 10base.
+     Celý blok jde odebrat bez dopadu na funkčnost.
+     ═══════════════════════════════════════════════════════════════ */
+
+  /* horní lišta: průhledné sklo, výraznější název */
+  #topbar {
+    background: var(--glass);
+    -webkit-backdrop-filter: saturate(1.4) blur(16px);
+    backdrop-filter: saturate(1.4) blur(16px);
+    border-bottom: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+    padding: 12px 16px;
+  }
+  #chat-title-display { font-size: 15px; font-weight: 600; color: var(--text); }
+  #mode-toggle { border-color: transparent; background: var(--surface2); }
+
+  /* zprávy */
+  #messages-wrap { padding: 20px 0 12px; }
+  #messages { gap: 2px; padding: 0 14px; }
+  #welcome { margin-top: 0; }
+  .msg { gap: 8px; align-items: flex-end; animation: msgIn 0.2s ease-out; }
+  .msg:not(.cont) { margin-top: 14px; }
+  .msg:first-child { margin-top: 0; }
+  @keyframes msgIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  @media (prefers-reduced-motion: reduce) { .msg { animation: none; } #messages-wrap { scroll-behavior: auto; } }
+
+  .msg-name { display: none; }
+  .msg.user .msg-avatar { display: none; }
+  .msg-avatar { width: 28px; height: 28px; }
+  .msg.marek .msg-avatar { background: linear-gradient(135deg, var(--accent-dim), #1a0a05); border: none; }
+  .msg.marek.more .msg-avatar { visibility: hidden; }   /* avatar jen u poslední bubliny ve skupině */
+  .msg-body { max-width: min(80%, 540px); }
+
+  .msg-bubble {
+    padding: 9px 14px;
+    font-size: 15px;
+    line-height: 1.45;
+    border-radius: 20px;
+    border: none;
+  }
+  .msg.marek .msg-bubble { background: var(--bubble-in); color: var(--bubble-in-text); border: none; border-radius: 20px; }
+  .msg.user .msg-bubble  { background: var(--bubble-out); color: var(--bubble-out-text); border: none; border-radius: 20px; font-weight: 500; }
+  /* navazující bubliny od stejného autora: ostřejší vnitřní rohy */
+  .msg.marek.cont .msg-bubble { border-top-left-radius: 6px; }
+  .msg.marek.more .msg-bubble { border-bottom-left-radius: 6px; }
+  .msg.user.cont  .msg-bubble { border-top-right-radius: 6px; }
+  .msg.user.more  .msg-bubble { border-bottom-right-radius: 6px; }
+
+  .msg.user .msg-bubble strong, .msg.user .msg-bubble em { color: inherit; }
+  .msg.user .msg-bubble code { background: rgba(0, 0, 0, 0.25); border-color: transparent; }
+  .msg.marek .msg-bubble code { background: rgba(0, 0, 0, 0.28); border-color: transparent; }
+  body.light .msg.marek .msg-bubble code { background: rgba(0, 0, 0, 0.08); }
+  .msg.user .msg-files .chip { background: rgba(255, 255, 255, 0.18); border-color: rgba(255, 255, 255, 0.28); color: #fff; }
+  .msg.user .msg-files .chip .chip-state { color: rgba(255, 255, 255, 0.8); }
+  .typing-indicator { padding: 8px 4px; }
+  .typing-dot { background: var(--text-dim); }
+
+  /* úvodní obrazovka */
+  .welcome-avatar { width: 76px; height: 76px; background: linear-gradient(135deg, var(--accent-dim), #1a0a05); border: none; overflow: hidden; box-shadow: 0 0 0 3px var(--ring), 0 8px 24px rgba(238, 34, 12, 0.25); }
+  .suggestion-chip { border-radius: 999px; background: var(--surface2); border-color: transparent; padding: 9px 16px; }
+  .suggestion-chip:hover { background: color-mix(in srgb, var(--accent) 14%, var(--surface2)); border-color: transparent; color: var(--text); }
+
+  /* pole pro psaní: pilulka s kulatým červeným tlačítkem */
+  #input-area { border-top: none; padding: 8px 14px max(14px, env(safe-area-inset-bottom)); background: linear-gradient(to top, var(--bg) 72%, transparent); }
+  #input-wrap { border-radius: 26px; background: var(--surface2); border: 1px solid transparent; padding: 5px 5px 5px 6px; gap: 4px; }
+  #input-wrap:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--ring); }
+  #user-input { padding: 9px 6px; font-size: 15px; max-height: 160px; }
+  #btn-attach { width: 38px; height: 38px; border-radius: 50%; color: var(--accent); }
+  #btn-attach:hover { background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent); }
+  #btn-send { width: 38px; height: 38px; border-radius: 50%; }
+  #btn-send:disabled { background: transparent; color: var(--text-muted); }
+  .input-hint { font-size: 11px; opacity: 0.8; }
+  body.light { --bubble-in: #e4e4ea; }
+  body.light #input-wrap { background: #ffffff; border-color: rgba(0, 0, 0, 0.08); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06); }
+  body.light #input-wrap:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--ring); }
+  body.light #input-area { background: linear-gradient(to top, var(--bg) 72%, transparent); }
+  .chip { border-radius: 999px; }
+
+  /* postranní panel */
+  #btn-new-chat { background: var(--accent); border: none; color: #fff; border-radius: 12px; padding: 10px 14px; font-weight: 600; }
+  #btn-new-chat:hover { background: #d41d0a; border: none; }
+  #btn-new-chat svg { color: #fff; }
+  #btn-marketing { border-radius: 12px; border-color: transparent; background: var(--surface2); padding: 10px 14px; }
+  #btn-marketing:hover, #btn-marketing.active { background: color-mix(in srgb, var(--accent) 14%, var(--surface2)); }
+  .chat-item { border-radius: 12px; padding: 10px 12px; }
+  .chat-item.active { background: color-mix(in srgb, var(--accent) 14%, transparent); box-shadow: inset 3px 0 0 var(--accent); }
+  .logo-mark { border-radius: 10px; overflow: hidden; }
+
+  /* Marketing: stejný jazyk karet */
+  .mk-card { border-radius: 16px; border-color: transparent; box-shadow: var(--shadow-card); }
+  .mk-card select, .mk-card textarea, .mk-brand input[type=text] { border-radius: 12px; }
+  .mk-go { border-radius: 12px; }
+  .mk-draft-text, .mk-ver-text { border-radius: 12px; }
+  .mk-draft-actions button, .mk-panel-actions button { border-radius: 999px; }
+  .mk-filters button { border-radius: 999px; }
+
+  @media (max-width: 700px) {
+    #messages { padding: 0 10px; }
+    .msg-body { max-width: 84%; }
+    #marketing-view { padding: 14px; }
+  }
 </style>
 </head>
 <body>
@@ -1049,8 +1194,8 @@
         <textarea id="mk-instr" maxlength="1000" placeholder="Např. důraz na to, že vstup je zdarma; kratší; vtipnější tón…"></textarea>
         <button type="button" class="mk-go" id="mk-go">Navrhnout text</button>
       </div>
-      <div id="mk-result"></div>
-      <div class="mk-section-title">Uložené návrhy</div>
+      <div class="mk-section-title">Návrhy</div>
+      <div class="mk-filters" id="mk-filters"></div>
       <div id="mk-list"><div class="mk-empty">Zatím žádné návrhy.</div></div>
     </div>
   </div>
@@ -1252,6 +1397,12 @@ $sidebarOverlay.addEventListener('click', () => {
 // Záložka je vidět jen uživatelům uvedeným v /marketingAccess; server to kontroluje znovu.
 const MK_CHANNELS = { facebook: 'Facebook', instagram: 'Instagram', plakat: 'Plakát', newsletter: 'Newsletter' };
 const mkDrafts = {};
+const MK_STATUS = { navrh: 'Nový návrh', rozpracovano: 'Rozpracováno', ke_schvaleni: 'Ke schválení', hotovo: 'Hotovo', archiv: 'Archiv' };
+const MK_FILTERS = [['aktivni', 'Aktivní'], ['navrh', 'Nové'], ['rozpracovano', 'Rozpracované'], ['ke_schvaleni', 'Ke schválení'], ['hotovo', 'Hotové'], ['archiv', 'Archiv']];
+const MK_SOURCE = { marek: 'Marek', rucni: 'ručně', obnoveni: 'obnovení' };
+let mkAll = [], mkFilter = 'aktivni', mkJumpTo = null;
+const mkUi = {};                      // id -> { panel, base, editText, commentText }
+const mkVersions = {}, mkComments = {}, mkSubs = {};
 const MK_BRAND_FIELDS = ['tonalita', 'zakazano', 'hashtagy', 'podpis', 'fakta'];
 let mkBrandDirty = false;
 let mkChannel = 'facebook', mkStarted = false, mkBusy = false;
@@ -1269,6 +1420,7 @@ function initMarketing(uid) {
 }
 
 function mkSubscribe() {
+  mkRenderFilters();
   onValue(ref(db, 'akce'), snap => {
     const sel = document.getElementById('mk-akce'), keep = sel.value;
     const today = new Date(); today.setHours(0, 0, 0, 0);
@@ -1287,21 +1439,114 @@ function mkSubscribe() {
     document.getElementById('mk-brand-meta').textContent = who ? `Naposledy upravil ${who}, ${when}` : 'Zatím nenastaveno.';
   }, () => {});
   onValue(ref(db, 'marketing/drafts'), snap => {
-    const list = Object.entries(snap.val() || {}).map(([id, d]) => ({ id, ...d })).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)).slice(0, 30);
-    list.forEach(d => { mkDrafts[d.id] = d; });
-    document.getElementById('mk-list').innerHTML = list.length ? list.map(mkCardHtml).join('') : '<div class="mk-empty">Zatím žádné návrhy.</div>';
+    mkAll = Object.entries(snap.val() || {}).map(([id, d]) => ({ id, ...d })).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)).slice(0, 60);
+    mkAll.forEach(d => { mkDrafts[d.id] = d; });
+    mkRenderList();
   }, () => {});
 }
 
+const mkWhen = ts => ts ? new Date(ts).toLocaleString('cs-CZ', { day: 'numeric', month: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+const mkSig = d => JSON.stringify([d.version, d.status, d.updatedAt, d.commentCount || 0, d.warnings || null, d.text, d.akceNazev]);
+
 function mkCardHtml(d) {
-  const when = d.createdAt ? new Date(d.createdAt).toLocaleString('cs-CZ', { day: 'numeric', month: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
-  return `<div class="mk-card" data-id="${escHtml(d.id)}">
-    <div class="mk-draft-meta"><strong>${escHtml(d.akceNazev || '?')}</strong><span>${escHtml(MK_CHANNELS[d.kanal] || d.kanal || '')}</span><span>${escHtml(d.createdBy?.name || '')}</span><span>${escHtml(when)}</span></div>
+  const st = d.status || 'navrh', ui = mkUi[d.id] || {}, cc = d.commentCount || 0;
+  const opts = Object.entries(MK_STATUS).map(([k, l]) => `<option value="${k}"${k === st ? ' selected' : ''}>${escHtml(l)}</option>`).join('');
+  const btn = (p, label) => `<button type="button" data-act="panel" data-panel="${p}"${ui.panel === p ? ' class="on"' : ''}>${label}</button>`;
+  return `<div class="mk-card mk-d" data-id="${escHtml(d.id)}" data-sig="${escHtml(mkSig(d))}">
+    <div class="mk-draft-meta"><strong>${escHtml(d.akceNazev || '?')}</strong><span>${escHtml(MK_CHANNELS[d.kanal] || d.kanal || '')}</span><span class="mk-status s-${escHtml(st)}">${escHtml(MK_STATUS[st] || st)}</span></div>
+    <div class="mk-draft-meta mk-sub"><span>verze ${d.version || 1}</span><span>${escHtml(d.updatedBy?.name || d.createdBy?.name || '')}</span><span>${escHtml(mkWhen(d.updatedAt || d.createdAt))}</span></div>
     <pre class="mk-draft-text">${escHtml(d.text || '')}</pre>
     ${d.instrukce ? `<div class="mk-draft-meta" style="margin:8px 0 0;">Pokyny: ${escHtml(d.instrukce)}</div>` : ''}
     ${d.warnings?.length ? `<div class="mk-warn">⚠ ${d.warnings.map(escHtml).join('<br>⚠ ')}</div>` : ''}
-    <div class="mk-draft-actions"><button type="button" data-act="copy">Kopírovat</button><button type="button" data-act="reuse">Upravit zadání</button></div>
+    <div class="mk-draft-actions">
+      <button type="button" data-act="copy">Kopírovat</button>${btn('edit', 'Upravit')}${btn('refine', 'Přepsat s Markem')}${btn('history', 'Verze')}${btn('comments', 'Komentáře' + (cc ? ` (${cc})` : ''))}
+      <select class="mk-status-sel" data-act="status" aria-label="Stav návrhu">${opts}</select>
+    </div>
+    <div class="mk-panel" data-panelbody></div>
   </div>`;
+}
+
+function mkRenderFilters() {
+  document.getElementById('mk-filters').innerHTML = MK_FILTERS.map(([k, l]) => `<button type="button" data-filter="${k}"${k === mkFilter ? ' class="active"' : ''}>${escHtml(l)}</button>`).join('');
+}
+
+function mkRenderList() {
+  const list = document.getElementById('mk-list');
+  const items = mkAll.filter(d => mkFilter === 'aktivni' ? (d.status || 'navrh') !== 'archiv' : (d.status || 'navrh') === mkFilter);
+  if (!items.length) { list.innerHTML = '<div class="mk-empty">V tomto přehledu nejsou žádné návrhy.</div>'; return; }
+  const old = {};
+  list.querySelectorAll(':scope > .mk-d').forEach(n => { old[n.dataset.id] = n; });
+  const fresh = new Set();
+  const nodes = items.map(d => {
+    const ui = mkUi[d.id] || {}, prev = old[d.id];
+    // rozepsaná úprava ani pokyn se nesmí smazat, když přijde změna od někoho jiného (konflikt se řeší při uložení)
+    if (prev && (prev.dataset.sig === mkSig(d) || ui.panel === 'edit' || ui.panel === 'refine')) return prev;
+    const t = document.createElement('div'); t.innerHTML = mkCardHtml(d);
+    fresh.add(d.id); return t.firstElementChild;
+  });
+  list.replaceChildren(...nodes);
+  fresh.forEach(id => mkRenderPanel(id));
+  if (mkJumpTo) {
+    const n = list.querySelector(`[data-id="${CSS.escape(mkJumpTo)}"]`);
+    if (n) { n.scrollIntoView({ behavior: 'smooth', block: 'start' }); n.classList.add('mk-flash'); mkJumpTo = null; }
+  }
+}
+
+function mkSubscribe2(id, kind) {
+  if (mkSubs[id + kind]) return;
+  mkSubs[id + kind] = true;
+  onValue(ref(db, `marketing/${kind}/${id}`), snap => {
+    const store = kind === 'versions' ? mkVersions : mkComments;
+    store[id] = Object.entries(snap.val() || {}).map(([k, v]) => ({ k, ...v }));
+    const ui = mkUi[id];
+    if (ui && ((kind === 'versions' && ui.panel === 'history') || (kind === 'comments' && ui.panel === 'comments'))) mkRenderPanel(id);
+  }, () => { (kind === 'versions' ? mkVersions : mkComments)[id] = []; });
+}
+
+function mkRenderPanel(id) {
+  const card = document.querySelector(`#mk-list .mk-d[data-id="${CSS.escape(id)}"]`); if (!card) return;
+  const body = card.querySelector('[data-panelbody]'), d = mkDrafts[id], ui = mkUi[id] || {};
+  card.querySelectorAll('[data-act="panel"]').forEach(b => b.classList.toggle('on', b.dataset.panel === ui.panel));
+  if (!d || !ui.panel) { body.innerHTML = ''; return; }
+  if (ui.panel === 'edit') {
+    body.innerHTML = `<textarea class="mk-edit" maxlength="6000"></textarea>
+      <div class="mk-panel-actions"><button type="button" class="primary" data-act="edit-save">Uložit jako novou verzi</button><button type="button" data-act="edit-reload">Načíst nejnovější</button><span class="mk-hint">Upravuješ verzi ${ui.base}</span></div><div class="mk-inline-err"></div>`;
+    body.querySelector('.mk-edit').value = ui.editText ?? d.text;
+  } else if (ui.panel === 'refine') {
+    body.innerHTML = `<textarea class="mk-refine" maxlength="1000" placeholder="Např. kratší, bez emoji, přidej výzvu ke sdílení…"></textarea>
+      <div class="mk-panel-actions"><button type="button" class="primary" data-act="refine-go">Přepsat s Markem</button><span class="mk-hint">Vznikne nová verze, původní zůstane v historii.</span></div>`;
+  } else if (ui.panel === 'history') {
+    mkSubscribe2(id, 'versions');
+    const vs = mkVersions[id];
+    if (!vs) { body.innerHTML = '<div class="mk-empty">Načítám…</div>'; return; }
+    const cur = d.version || 1;
+    const rows = vs.sort((a, b) => (b.n || 0) - (a.n || 0)).map(v => `<div class="mk-ver" data-n="${v.n}">
+      <div class="mk-ver-head"><strong>v${v.n}</strong><span>${escHtml(v.by?.name || '')}</span><span>${escHtml(mkWhen(v.at))}</span><span>${escHtml(MK_SOURCE[v.source] || v.source || '')}</span>${v.n === cur ? '<span>(aktuální)</span>' : ''}
+        <span class="mk-ver-btns"><button type="button" data-act="ver-show">Zobrazit</button>${v.n === cur ? '' : '<button type="button" data-act="ver-restore">Obnovit</button>'}</span></div>
+      ${v.note ? `<div class="mk-hint" style="font-size:12px;color:var(--text-dim);">${escHtml(v.note)}</div>` : ''}
+      <pre class="mk-ver-text" hidden>${escHtml(v.text || '')}</pre></div>`).join('');
+    body.innerHTML = rows || '<div class="mk-empty">Historie je prázdná.</div>';
+  } else if (ui.panel === 'comments') {
+    mkSubscribe2(id, 'comments');
+    const cs = (mkComments[id] || []).sort((a, b) => (a.at || 0) - (b.at || 0));
+    const rows = cs.map(c => `<div class="mk-com${c.system ? ' sys' : ''}">${c.system ? '' : `<div class="mk-com-head"><strong>${escHtml(c.by?.name || '')}</strong><span>${escHtml(mkWhen(c.at))}</span></div>`}${escHtml(c.text)}${c.system ? ` <span>(${escHtml(mkWhen(c.at))})</span>` : ''}</div>`).join('');
+    body.innerHTML = `${rows || '<div class="mk-empty">Zatím žádné komentáře.</div>'}
+      <textarea class="mk-com-input" maxlength="1000" placeholder="Napiš komentář…"></textarea>
+      <div class="mk-panel-actions"><button type="button" class="primary" data-act="com-send">Odeslat</button></div>`;
+    body.querySelector('.mk-com-input').value = ui.commentText || '';
+  }
+}
+
+async function mkCall(payload) {
+  const idToken = await auth.currentUser.getIdToken();
+  const res = await fetch(MAREK_MARKETING_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
+    body: JSON.stringify(payload)
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) { const e = new Error(data.error || 'Akce se nezdařila.'); e.status = res.status; throw e; }
+  return data;
 }
 
 async function mkCopy(text) {
@@ -1330,7 +1575,8 @@ async function mkGenerate() {
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.error || 'Návrh se nepodařilo vytvořit.');
     mkDrafts[data.draft.id] = data.draft;
-    document.getElementById('mk-result').innerHTML = mkCardHtml(data.draft);
+    mkFilter = 'aktivni'; mkJumpTo = data.draft.id; mkRenderFilters();
+    mkRenderList();
   } catch (e) {
     showToast(e.message);
   } finally {
@@ -1370,17 +1616,73 @@ document.getElementById('mk-brand-save').addEventListener('click', async () => {
     btn.disabled = false; btn.textContent = 'Uložit pravidla';
   }
 });
-document.getElementById('marketing-view').addEventListener('click', e => {
+document.getElementById('mk-filters').addEventListener('click', e => {
+  const b = e.target.closest('button[data-filter]'); if (!b) return;
+  mkFilter = b.dataset.filter; mkRenderFilters(); mkRenderList();
+});
+
+document.getElementById('marketing-view').addEventListener('input', e => {
+  const id = e.target.closest('.mk-d')?.dataset.id; if (!id) return;
+  const ui = mkUi[id] = mkUi[id] || {};
+  if (e.target.classList.contains('mk-edit')) ui.editText = e.target.value;
+  if (e.target.classList.contains('mk-com-input')) ui.commentText = e.target.value;
+});
+
+document.getElementById('marketing-view').addEventListener('change', async e => {
+  const sel = e.target.closest('select[data-act="status"]'); if (!sel) return;
+  const id = sel.closest('.mk-d').dataset.id, d = mkDrafts[id];
+  try { await mkCall({ action: 'draft_status', draftId: id, status: sel.value }); showToast('Stav změněn.'); }
+  catch (err) { showToast(err.message); sel.value = d?.status || 'navrh'; }
+});
+
+document.getElementById('marketing-view').addEventListener('click', async e => {
   const b = e.target.closest('button[data-act]'); if (!b) return;
-  const d = mkDrafts[b.closest('.mk-card')?.dataset.id]; if (!d) return;
-  if (b.dataset.act === 'copy') mkCopy(d.text);
-  if (b.dataset.act === 'reuse') {
-    const sel = document.getElementById('mk-akce');
-    if ([...sel.options].some(o => o.value === d.akceId)) sel.value = d.akceId;
-    mkChannel = d.kanal;
-    document.querySelectorAll('.mk-channel').forEach(x => x.classList.toggle('active', x.dataset.ch === mkChannel));
-    document.getElementById('mk-instr').value = d.instrukce || '';
-    document.getElementById('marketing-view').scrollTo({ top: 0, behavior: 'smooth' });
+  const card = b.closest('.mk-d'); if (!card) return;
+  const id = card.dataset.id, d = mkDrafts[id]; if (!d) return;
+  const ui = mkUi[id] = mkUi[id] || {};
+  const act = b.dataset.act;
+  const closePanel = () => { ui.panel = null; ui.editText = undefined; mkRenderPanel(id); mkRenderList(); };
+  if (act === 'copy') return mkCopy(d.text);
+  if (act === 'panel') {
+    const p = b.dataset.panel;
+    ui.panel = ui.panel === p ? null : p;
+    if (ui.panel === 'edit') { ui.base = d.version || 1; ui.editText = undefined; }
+    mkRenderPanel(id);
+    if (!ui.panel) mkRenderList();
+    return;
+  }
+  if (act === 'ver-show') { const pre = b.closest('.mk-ver').querySelector('.mk-ver-text'); pre.hidden = !pre.hidden; return; }
+  b.disabled = true;
+  try {
+    if (act === 'edit-save') {
+      const text = card.querySelector('.mk-edit').value;
+      const r = await mkCall({ action: 'draft_edit', draftId: id, text, baseVersion: ui.base });
+      showToast(`Uloženo jako verze ${r.draft.version}.`); closePanel();
+    } else if (act === 'edit-reload') {
+      ui.base = d.version || 1; ui.editText = undefined; mkRenderPanel(id);
+    } else if (act === 'refine-go') {
+      const instructions = card.querySelector('.mk-refine').value.trim();
+      if (!instructions) { showToast('Napiš, co mám změnit.'); return; }
+      b.textContent = 'Marek přepisuje…';
+      const r = await mkCall({ action: 'draft_refine', draftId: id, instructions, baseVersion: d.version || 1 });
+      showToast(`Přepsáno, verze ${r.draft.version}.`); closePanel();
+    } else if (act === 'ver-restore') {
+      const n = Number(b.closest('.mk-ver').dataset.n);
+      if (!confirm(`Obnovit verzi ${n}? Vznikne nová verze, současná zůstane v historii.`)) return;
+      const r = await mkCall({ action: 'draft_restore', draftId: id, versionN: n, baseVersion: d.version || 1 });
+      showToast(`Obnoveno jako verze ${r.draft.version}.`);
+    } else if (act === 'com-send') {
+      const text = card.querySelector('.mk-com-input').value.trim();
+      if (!text) { showToast('Napiš komentář.'); return; }
+      await mkCall({ action: 'draft_comment', draftId: id, text });
+      ui.commentText = ''; card.querySelector('.mk-com-input').value = '';
+    }
+  } catch (err) {
+    showToast(err.message);
+    const holder = card.querySelector('.mk-inline-err'); if (holder) holder.textContent = err.status === 409 ? err.message : '';
+    if (act === 'refine-go') b.textContent = 'Přepsat s Markem';
+  } finally {
+    b.disabled = false;
   }
 });
 
@@ -1704,6 +2006,10 @@ function renderMessage(who, text, atts = []) {
       <div class="msg-bubble">${formatText(text)}${atts.length ? `<div class="msg-files">${atts.map(a => chipHtml(a.name, 'ok')).join('')}</div>` : ''}</div>
     </div>
   `;
+
+  // Messenger: navazující zprávy od stejného autora tvoří skupinu (ostřejší vnitřní rohy, avatar jen u poslední)
+  const prev = $messages.lastElementChild;
+  if (prev && prev.classList.contains('msg') && prev.classList.contains(who)) { prev.classList.add('more'); div.classList.add('cont'); }
 
   $messages.appendChild(div);
   return div;
