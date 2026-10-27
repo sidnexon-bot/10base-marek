@@ -649,6 +649,70 @@
   .msg-files { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
   .msg-files .chip { font-size: 11px; }
 
+  /* ── MARKETING ── */
+  #btn-marketing {
+    display: none;
+    width: 100%;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
+    padding: 9px 12px;
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text);
+    font-family: inherit;
+    font-size: 13px;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  #btn-marketing.visible { display: flex; }
+  #btn-marketing:hover, #btn-marketing.active { background: var(--surface2); }
+  #btn-marketing svg { width: 15px; height: 15px; color: var(--text-dim); flex-shrink: 0; }
+
+  #marketing-view { display: none; flex: 1; overflow-y: auto; padding: 20px; }
+  #main.view-marketing #marketing-view { display: block; }
+  #main.view-marketing #messages-wrap,
+  #main.view-marketing #input-area,
+  #main.view-marketing #mode-toggle { display: none; }
+  .mk-wrap { max-width: 720px; margin: 0 auto; }
+  .mk-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; margin-bottom: 16px; }
+  .mk-card h2 { font-size: 15px; font-weight: 600; margin: 0 0 12px; }
+  .mk-label { display: block; font-size: 12px; color: var(--text-dim); margin: 12px 0 6px; }
+  .mk-card h2 + .mk-label { margin-top: 0; }
+  .mk-card select, .mk-card textarea {
+    width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm);
+    color: var(--text); font-family: inherit; font-size: 14px; padding: 10px 12px; outline: none;
+  }
+  .mk-card textarea { resize: vertical; min-height: 64px; line-height: 1.5; }
+  .mk-card select:focus, .mk-card textarea:focus { border-color: #3a3a3a; }
+  .mk-channels { display: flex; flex-wrap: wrap; gap: 8px; }
+  .mk-channel {
+    background: var(--bg); border: 1px solid var(--border); border-radius: 999px; padding: 7px 14px;
+    color: var(--text-dim); font-family: inherit; font-size: 13px; cursor: pointer;
+  }
+  .mk-channel.active { border-color: var(--accent); color: var(--accent); }
+  .mk-go {
+    margin-top: 14px; width: 100%; padding: 11px; background: var(--accent); border: none; border-radius: var(--radius-sm);
+    color: #fff; font-family: inherit; font-size: 14px; font-weight: 600; cursor: pointer;
+  }
+  .mk-go:hover { background: #cc1d0a; }
+  .mk-go:disabled { background: var(--surface2); color: var(--text-muted); cursor: not-allowed; }
+  .mk-draft-meta { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 12px; color: var(--text-dim); margin-bottom: 10px; }
+  .mk-draft-meta strong { color: var(--text); font-weight: 600; }
+  .mk-draft-text {
+    white-space: pre-wrap; overflow-wrap: anywhere; font-family: inherit; font-size: 14px; line-height: 1.55;
+    background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px; margin: 0;
+  }
+  .mk-draft-actions { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+  .mk-draft-actions button {
+    background: var(--surface2); border: none; border-radius: var(--radius-sm); padding: 8px 12px;
+    color: var(--text); font-family: inherit; font-size: 13px; cursor: pointer;
+  }
+  .mk-draft-actions button:hover { background: var(--border); }
+  .mk-empty { color: var(--text-dim); font-size: 13px; text-align: center; padding: 16px 0; }
+  .mk-section-title { font-size: 12px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-dim); margin: 22px 0 10px; }
+
   .input-hint {
     max-width: 720px;
     margin: 8px auto 0;
@@ -858,6 +922,14 @@
       Nový chat
     </button>
   </div>
+  <div style="padding: 0 12px;">
+    <button id="btn-marketing" type="button">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3 11l18-8v18L3 13z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/>
+      </svg>
+      Marketing
+    </button>
+  </div>
   <div class="sidebar-section-label">Konverzace</div>
   <div id="chat-list"></div>
   <div class="sidebar-footer">
@@ -928,6 +1000,29 @@
         </svg>
         Internet
       </button>
+    </div>
+  </div>
+
+  <div id="marketing-view">
+    <div class="mk-wrap">
+      <div class="mk-card">
+        <h2>Nový návrh textu</h2>
+        <label class="mk-label" for="mk-akce">Akce</label>
+        <select id="mk-akce"></select>
+        <span class="mk-label">Kanál</span>
+        <div class="mk-channels" id="mk-channels">
+          <button type="button" class="mk-channel active" data-ch="facebook">Facebook</button>
+          <button type="button" class="mk-channel" data-ch="instagram">Instagram</button>
+          <button type="button" class="mk-channel" data-ch="plakat">Plakát</button>
+          <button type="button" class="mk-channel" data-ch="newsletter">Newsletter</button>
+        </div>
+        <label class="mk-label" for="mk-instr">Pokyny pro Marka (nepovinné)</label>
+        <textarea id="mk-instr" maxlength="1000" placeholder="Např. důraz na to, že vstup je zdarma; kratší; vtipnější tón…"></textarea>
+        <button type="button" class="mk-go" id="mk-go">Navrhnout text</button>
+      </div>
+      <div id="mk-result"></div>
+      <div class="mk-section-title">Uložené návrhy</div>
+      <div id="mk-list"><div class="mk-empty">Zatím žádné návrhy.</div></div>
     </div>
   </div>
 
@@ -1004,6 +1099,7 @@ const db   = getDatabase(app);
 let currentUser   = null;
 // AI volá Cloud Function chatMarek — API klíč zůstává na serveru (/gemini_config je pro klienty zavřený)
 const CHAT_MAREK_URL = "https://chatmarek-etp6s2ynnq-uc.a.run.app";
+const MAREK_MARKETING_URL = "https://us-central1-base-39f52.cloudfunctions.net/marekMarketing";
 const MAREK_UPLOAD_URL = "https://us-central1-base-39f52.cloudfunctions.net/marekUpload";
 const MAX_UPLOAD_BYTES = 8 * 1024 * 1024;
 const MAX_FILES_PER_MESSAGE = 5;
@@ -1099,6 +1195,7 @@ onAuthStateChanged(auth, user => {
   updateSendBtn();
 
   loadChatList();
+  initMarketing(user.uid);
 });
 
 // ── MODE TOGGLE ──────────────────────────────────────────────────────
@@ -1122,7 +1219,125 @@ $sidebarOverlay.addEventListener('click', () => {
 });
 
 // ── NEW CHAT ─────────────────────────────────────────────────────────
+// ── MARKETING ──
+// Záložka je vidět jen uživatelům uvedeným v /marketingAccess; server to kontroluje znovu.
+const MK_CHANNELS = { facebook: 'Facebook', instagram: 'Instagram', plakat: 'Plakát', newsletter: 'Newsletter' };
+const mkDrafts = {};
+let mkChannel = 'facebook', mkStarted = false, mkBusy = false;
+
+function initMarketing(uid) {
+  if (mkStarted) return;
+  mkStarted = true;
+  let subscribed = false;
+  onValue(ref(db, `marketingAccess/${uid}`), snap => {
+    const ok = snap.val() === true;
+    document.getElementById('btn-marketing').classList.toggle('visible', ok);
+    if (ok && !subscribed) { subscribed = true; mkSubscribe(); }
+    if (!ok) setView('chat');
+  }, () => { document.getElementById('btn-marketing').classList.remove('visible'); });
+}
+
+function mkSubscribe() {
+  onValue(ref(db, 'akce'), snap => {
+    const sel = document.getElementById('mk-akce'), keep = sel.value;
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const all = Object.values(snap.val() || {}).filter(a => a && a.id && a.date && !String(a.date).startsWith('[') && !isNaN(new Date(a.date)));
+    const fmt = a => `${a.name || '?'} – ${new Date(a.date).toLocaleDateString('cs-CZ', { day: 'numeric', month: 'numeric', year: 'numeric' })}`;
+    const up = all.filter(a => new Date(a.date) >= today).sort((a, b) => new Date(a.date) - new Date(b.date));
+    const past = all.filter(a => new Date(a.date) < today).sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 10);
+    const opts = list => list.map(a => `<option value="${escHtml(a.id)}">${escHtml(fmt(a))}</option>`).join('');
+    sel.innerHTML = `<optgroup label="Nadcházející">${opts(up)}</optgroup><optgroup label="Proběhlé (posledních 10)">${opts(past)}</optgroup>`;
+    if (keep && [...sel.options].some(o => o.value === keep)) sel.value = keep;
+  }, () => {});
+  onValue(ref(db, 'marketing/drafts'), snap => {
+    const list = Object.entries(snap.val() || {}).map(([id, d]) => ({ id, ...d })).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)).slice(0, 30);
+    list.forEach(d => { mkDrafts[d.id] = d; });
+    document.getElementById('mk-list').innerHTML = list.length ? list.map(mkCardHtml).join('') : '<div class="mk-empty">Zatím žádné návrhy.</div>';
+  }, () => {});
+}
+
+function mkCardHtml(d) {
+  const when = d.createdAt ? new Date(d.createdAt).toLocaleString('cs-CZ', { day: 'numeric', month: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+  return `<div class="mk-card" data-id="${escHtml(d.id)}">
+    <div class="mk-draft-meta"><strong>${escHtml(d.akceNazev || '?')}</strong><span>${escHtml(MK_CHANNELS[d.kanal] || d.kanal || '')}</span><span>${escHtml(d.createdBy?.name || '')}</span><span>${escHtml(when)}</span></div>
+    <pre class="mk-draft-text">${escHtml(d.text || '')}</pre>
+    ${d.instrukce ? `<div class="mk-draft-meta" style="margin:8px 0 0;">Pokyny: ${escHtml(d.instrukce)}</div>` : ''}
+    <div class="mk-draft-actions"><button type="button" data-act="copy">Kopírovat</button><button type="button" data-act="reuse">Upravit zadání</button></div>
+  </div>`;
+}
+
+async function mkCopy(text) {
+  try { await navigator.clipboard.writeText(text); }
+  catch {
+    const t = document.createElement('textarea'); t.value = text; t.style.position = 'fixed'; t.style.opacity = '0';
+    document.body.appendChild(t); t.select(); document.execCommand('copy'); t.remove();
+  }
+  showToast('Zkopírováno.');
+}
+
+async function mkGenerate() {
+  if (mkBusy) return;
+  const akceId = document.getElementById('mk-akce').value;
+  if (!akceId) { showToast('Vyber akci.'); return; }
+  const btn = document.getElementById('mk-go');
+  mkBusy = true; btn.disabled = true; btn.textContent = 'Marek píše…';
+  try {
+    const idToken = await auth.currentUser.getIdToken();
+    const instructions = document.getElementById('mk-instr').value.trim();
+    const res = await fetch(MAREK_MARKETING_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
+      body: JSON.stringify({ akceId, channel: mkChannel, ...(instructions ? { instructions } : {}) })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || 'Návrh se nepodařilo vytvořit.');
+    mkDrafts[data.draft.id] = data.draft;
+    document.getElementById('mk-result').innerHTML = mkCardHtml(data.draft);
+  } catch (e) {
+    showToast(e.message);
+  } finally {
+    mkBusy = false; btn.disabled = false; btn.textContent = 'Navrhnout text';
+  }
+}
+
+document.getElementById('btn-marketing').addEventListener('click', () => {
+  setView('marketing');
+  $sidebar.classList.remove('open'); $sidebarOverlay.classList.remove('open');
+});
+document.getElementById('mk-channels').addEventListener('click', e => {
+  const b = e.target.closest('.mk-channel'); if (!b) return;
+  mkChannel = b.dataset.ch;
+  document.querySelectorAll('.mk-channel').forEach(x => x.classList.toggle('active', x === b));
+});
+document.getElementById('mk-go').addEventListener('click', mkGenerate);
+document.getElementById('marketing-view').addEventListener('click', e => {
+  const b = e.target.closest('button[data-act]'); if (!b) return;
+  const d = mkDrafts[b.closest('.mk-card')?.dataset.id]; if (!d) return;
+  if (b.dataset.act === 'copy') mkCopy(d.text);
+  if (b.dataset.act === 'reuse') {
+    const sel = document.getElementById('mk-akce');
+    if ([...sel.options].some(o => o.value === d.akceId)) sel.value = d.akceId;
+    mkChannel = d.kanal;
+    document.querySelectorAll('.mk-channel').forEach(x => x.classList.toggle('active', x.dataset.ch === mkChannel));
+    document.getElementById('mk-instr').value = d.instrukce || '';
+    document.getElementById('marketing-view').scrollTo({ top: 0, behavior: 'smooth' });
+  }
+});
+
+// ── ZOBRAZENÍ: chat / marketing ──
+let lastChatTitle = 'Nový chat';
+function setView(v) {
+  const main = document.getElementById('main');
+  const mk = v === 'marketing';
+  if (mk === main.classList.contains('view-marketing')) return;
+  main.classList.toggle('view-marketing', mk);
+  document.getElementById('btn-marketing').classList.toggle('active', mk);
+  if (mk) { lastChatTitle = $chatTitle.textContent; $chatTitle.textContent = 'Marketing'; }
+  else $chatTitle.textContent = lastChatTitle;
+}
+
 document.getElementById('btn-new-chat').addEventListener('click', () => {
+  setView('chat');
   currentChatId = null;
   messages = [];
   $messages.innerHTML = '';
@@ -1187,6 +1402,7 @@ function loadChatList() {
 
 async function loadChat(chatId) {
   if (!currentUser) return;
+  setView('chat');
   currentChatId = chatId;
   messages = [];
 
