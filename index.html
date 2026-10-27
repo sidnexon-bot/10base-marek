@@ -601,6 +601,54 @@
   #btn-send:disabled { background: var(--surface2); cursor: not-allowed; }
   #btn-send svg { width: 16px; height: 16px; }
 
+  #btn-attach {
+    width: 34px;
+    height: 34px;
+    background: none;
+    border: none;
+    border-radius: 8px;
+    color: var(--text-muted);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    align-self: flex-end;
+    transition: color 0.15s, background 0.15s;
+  }
+  #btn-attach:hover { color: var(--text); background: var(--surface2); }
+  #btn-attach svg { width: 18px; height: 18px; }
+
+  #attach-row {
+    max-width: 720px;
+    margin: 0 auto 8px;
+    display: none;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  #attach-row.has-items { display: flex; }
+
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    max-width: 100%;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 4px 8px;
+    font-size: 12px;
+    color: var(--text);
+  }
+  .chip .chip-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+  .chip .chip-state { color: var(--text-muted); flex-shrink: 0; }
+  .chip.error { border-color: #7a2a22; }
+  .chip.error .chip-state { color: #e0574a; }
+  .chip button { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 14px; line-height: 1; padding: 0 2px; flex-shrink: 0; }
+  .chip button:hover { color: var(--text); }
+  .msg-files { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .msg-files .chip { font-size: 11px; }
+
   .input-hint {
     max-width: 720px;
     margin: 8px auto 0;
@@ -902,7 +950,14 @@
   </div>
 
   <div id="input-area">
+    <div id="attach-row"></div>
     <div id="input-wrap">
+      <button id="btn-attach" type="button" title="Přiložit soubor" aria-label="Přiložit soubor">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
+        </svg>
+      </button>
+      <input type="file" id="file-input" multiple hidden accept=".png,.jpg,.jpeg,.webp,.gif,.pdf,.docx,.txt,.md,.csv,.tsv,.json">
       <textarea id="user-input" placeholder="Napiš zprávu…" rows="1"></textarea>
       <button id="btn-send" disabled>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -911,7 +966,7 @@
         </svg>
       </button>
     </div>
-    <div class="input-hint">Marek může dělat chyby. Důležité věci si ověř.</div>
+    <div class="input-hint">Marek může dělat chyby. Důležité věci si ověř. Přílohy (obrázky, PDF, DOCX, text do 8 MB) se po 30 dnech mažou.</div>
   </div>
 </main>
 
@@ -949,6 +1004,10 @@ const db   = getDatabase(app);
 let currentUser   = null;
 // AI volá Cloud Function chatMarek — API klíč zůstává na serveru (/gemini_config je pro klienty zavřený)
 const CHAT_MAREK_URL = "https://chatmarek-etp6s2ynnq-uc.a.run.app";
+const MAREK_UPLOAD_URL = "https://us-central1-base-39f52.cloudfunctions.net/marekUpload";
+const MAX_UPLOAD_BYTES = 8 * 1024 * 1024;
+const MAX_FILES_PER_MESSAGE = 5;
+let pending = []; // přílohy čekající na odeslání: {key, name, state: "up"|"ok"|"err", id?, kind?, error?}
 let currentChatId = null;
 let currentMode   = 'safe'; // 'safe' | 'internet'
 let messages      = [];     // [{role, content}]
@@ -1145,8 +1204,9 @@ async function loadChat(chatId) {
 
   if (data.messages) {
     Object.values(data.messages).forEach(msg => {
-      messages.push({ role: msg.role, content: msg.content });
-      renderMessage(msg.role === 'user' ? 'user' : 'marek', msg.content);
+      const atts = Array.isArray(msg.attachments) ? msg.attachments : [];
+      messages.push({ role: msg.role, content: msg.content, attachments: atts });
+      renderMessage(msg.role === 'user' ? 'user' : 'marek', msg.content, atts);
     });
   }
 
@@ -1191,19 +1251,77 @@ document.querySelectorAll('.suggestion-chip').forEach(chip => {
 });
 
 function updateSendBtn() {
-  $btnSend.disabled = isLoading || !$input.value.trim() || !currentUser;
+  const uploading = pending.some(a => a.state === 'up');
+  const hasReady = pending.some(a => a.state === 'ok');
+  $btnSend.disabled = isLoading || uploading || (!$input.value.trim() && !hasReady) || !currentUser;
 }
 
+// ── PŘÍLOHY ──
+function chipHtml(name, state, extra = '') {
+  return `<span class="chip${state === 'err' ? ' error' : ''}"><span>📎</span><span class="chip-name">${escHtml(name)}</span>${extra}</span>`;
+}
+
+function renderAttachRow() {
+  const row = document.getElementById('attach-row');
+  row.classList.toggle('has-items', pending.length > 0);
+  row.innerHTML = pending.map(a => {
+    const st = a.state === 'up' ? '<span class="chip-state">nahrávám…</span>'
+             : a.state === 'err' ? `<span class="chip-state">${escHtml(a.error || 'chyba')}</span>` : '';
+    return `<span class="chip${a.state === 'err' ? ' error' : ''}"><span>📎</span><span class="chip-name">${escHtml(a.name)}</span>${st}<button type="button" data-key="${a.key}" aria-label="Odebrat">✕</button></span>`;
+  }).join('');
+  updateSendBtn();
+}
+
+async function uploadFile(file) {
+  if (pending.length >= MAX_FILES_PER_MESSAGE) { showToast(`Najednou max. ${MAX_FILES_PER_MESSAGE} příloh.`); return; }
+  const item = { key: Math.random().toString(36).slice(2), name: file.name || 'soubor', state: 'up' };
+  pending.push(item); renderAttachRow();
+  if (file.size > MAX_UPLOAD_BYTES) { item.state = 'err'; item.error = 'větší než 8 MB'; renderAttachRow(); return; }
+  try {
+    const idToken = await auth.currentUser.getIdToken();
+    const res = await fetch(`${MAREK_UPLOAD_URL}?name=${encodeURIComponent(item.name)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/octet-stream', 'Authorization': `Bearer ${idToken}` },
+      body: file
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || 'Nahrání se nezdařilo.');
+    Object.assign(item, { state: 'ok', id: data.file.id, kind: data.file.kind, name: data.file.name });
+  } catch (e) {
+    item.state = 'err'; item.error = e.message;
+    showToast(e.message);
+  }
+  renderAttachRow();
+}
+
+function addFiles(list) {
+  [...list].forEach(f => uploadFile(f));
+}
+
+document.getElementById('btn-attach').addEventListener('click', () => document.getElementById('file-input').click());
+document.getElementById('file-input').addEventListener('change', e => { addFiles(e.target.files); e.target.value = ''; });
+document.getElementById('attach-row').addEventListener('click', e => {
+  const b = e.target.closest('button[data-key]'); if (!b) return;
+  pending = pending.filter(a => a.key !== b.dataset.key); renderAttachRow();
+});
+// vložení obrázku ze schránky (např. snímek obrazovky)
+$input.addEventListener('paste', e => {
+  const files = [...(e.clipboardData?.files || [])].filter(f => f.type.startsWith('image/'));
+  if (files.length) { e.preventDefault(); addFiles(files); }
+});
+
 async function sendMessage() {
-  const text = $input.value.trim();
-  if (!text || isLoading || !currentUser) return;
+  const atts = pending.filter(a => a.state === 'ok').map(a => ({ id: a.id, name: a.name, kind: a.kind }));
+  const text = $input.value.trim() || (atts.length ? 'Přikládám soubor.' : '');
+  if (!text || isLoading || !currentUser || pending.some(a => a.state === 'up')) return;
+  const sentPending = pending; pending = []; renderAttachRow();
 
   // Hide welcome
   $welcome.style.display = 'none';
 
   // Add user message
-  messages.push({ role: 'user', content: text });
-  renderMessage('user', text);
+  messages.push({ role: 'user', content: text, attachments: atts });
+  renderMessage('user', text, atts);
   $input.value = '';
   $input.style.height = 'auto';
   isLoading = true;
@@ -1225,7 +1343,8 @@ async function sendMessage() {
         mode: currentMode,
         messages: messages.map(m => ({
           role: m.role === 'model' ? 'assistant' : 'user',
-          content: m.content
+          content: m.content,
+          ...(m.attachments?.length ? { attachments: m.attachments.map(a => a.id) } : {})
         }))
       })
     });
@@ -1247,6 +1366,7 @@ async function sendMessage() {
     typingEl.remove();
     showToast('Chyba: ' + e.message);
     messages.pop(); // remove failed user msg from history
+    pending = sentPending; renderAttachRow(); // přílohy zůstanou k opětovnému odeslání
   } finally {
     isLoading = false;
     updateSendBtn();
@@ -1281,7 +1401,8 @@ async function saveChat(userText, replyText) {
   messages.forEach((m, i) => {
     chatData.messages[`msg_${String(i).padStart(4, '0')}`] = {
       role: m.role,
-      content: m.content
+      content: m.content,
+      ...(m.attachments?.length ? { attachments: m.attachments } : {})
     };
   });
 
@@ -1289,7 +1410,7 @@ async function saveChat(userText, replyText) {
 }
 
 // ── RENDER ────────────────────────────────────────────────────────────
-function renderMessage(who, text) {
+function renderMessage(who, text, atts = []) {
   const isUser = who === 'user';
   const div = document.createElement('div');
   div.className = `msg ${who}`;
@@ -1304,7 +1425,7 @@ function renderMessage(who, text) {
     <div class="msg-avatar">${avatarHtml}</div>
     <div class="msg-body">
       <div class="msg-name">${isUser ? (currentUser?.displayName?.split(' ')[0] || 'Ty') : 'Marek'}</div>
-      <div class="msg-bubble">${formatText(text)}</div>
+      <div class="msg-bubble">${formatText(text)}${atts.length ? `<div class="msg-files">${atts.map(a => chipHtml(a.name, 'ok')).join('')}</div>` : ''}</div>
     </div>
   `;
 
