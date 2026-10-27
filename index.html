@@ -710,6 +710,19 @@
     color: var(--text); font-family: inherit; font-size: 13px; cursor: pointer;
   }
   .mk-draft-actions button:hover { background: var(--border); }
+  .mk-brand summary { cursor: pointer; font-size: 15px; font-weight: 600; list-style: none; display: flex; align-items: center; justify-content: space-between; }
+  .mk-brand summary::-webkit-details-marker { display: none; }
+  .mk-brand summary::after { content: '▾'; color: var(--text-dim); transition: transform 0.15s; }
+  .mk-brand[open] summary::after { transform: rotate(180deg); }
+  .mk-brand .mk-hint { font-size: 12px; color: var(--text-dim); margin: 10px 0 0; line-height: 1.5; }
+  .mk-brand .mk-label { margin-top: 12px; }
+  .mk-brand input[type=text] {
+    width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm);
+    color: var(--text); font-family: inherit; font-size: 14px; padding: 10px 12px; outline: none;
+  }
+  .mk-brand input[type=text]:focus { border-color: #3a3a3a; }
+  .mk-brand-meta { font-size: 12px; color: var(--text-dim); margin-top: 8px; }
+  .mk-warn { margin-top: 8px; font-size: 12px; color: #e0a64a; }
   .mk-empty { color: var(--text-dim); font-size: 13px; text-align: center; padding: 16px 0; }
   .mk-section-title { font-size: 12px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-dim); margin: 22px 0 10px; }
 
@@ -1005,6 +1018,22 @@
 
   <div id="marketing-view">
     <div class="mk-wrap">
+      <details class="mk-card mk-brand" id="mk-brand">
+        <summary>Pravidla značky</summary>
+        <p class="mk-hint">Marek je dodržuje u všech návrhů. Zakázané výrazy a stálé hashtagy hlídá server: text se zakázaným výrazem nechá jednou přepsat a chybějící hashtagy doplní.</p>
+        <label class="mk-label" for="mk-b-tonalita">Tón a styl</label>
+        <textarea id="mk-b-tonalita" maxlength="1200" placeholder="Např. přátelský, věcný, bez klišé; tykáme / vykáme; kolik emoji…"></textarea>
+        <label class="mk-label" for="mk-b-zakazano">Zakázané výrazy a témata (oddělené čárkou nebo novým řádkem)</label>
+        <textarea id="mk-b-zakazano" maxlength="600" placeholder="Např. skvělý, super, levný, konkurence"></textarea>
+        <label class="mk-label" for="mk-b-hashtagy">Stálé hashtagy (Facebook a Instagram)</label>
+        <input type="text" id="mk-b-hashtagy" maxlength="300" placeholder="#10men #acappella">
+        <label class="mk-label" for="mk-b-podpis">Podpis newsletteru</label>
+        <input type="text" id="mk-b-podpis" maxlength="120" placeholder="Vokální skupina 10men">
+        <label class="mk-label" for="mk-b-fakta">Ověřená fakta o skupině (odkazy, kontakty, standardní věty)</label>
+        <textarea id="mk-b-fakta" maxlength="800" placeholder="Např. Facebook: facebook.com/band10men, Instagram: instagram.com/band10men"></textarea>
+        <button type="button" class="mk-go" id="mk-brand-save">Uložit pravidla</button>
+        <div class="mk-brand-meta" id="mk-brand-meta"></div>
+      </details>
       <div class="mk-card">
         <h2>Nový návrh textu</h2>
         <label class="mk-label" for="mk-akce">Akce</label>
@@ -1223,6 +1252,8 @@ $sidebarOverlay.addEventListener('click', () => {
 // Záložka je vidět jen uživatelům uvedeným v /marketingAccess; server to kontroluje znovu.
 const MK_CHANNELS = { facebook: 'Facebook', instagram: 'Instagram', plakat: 'Plakát', newsletter: 'Newsletter' };
 const mkDrafts = {};
+const MK_BRAND_FIELDS = ['tonalita', 'zakazano', 'hashtagy', 'podpis', 'fakta'];
+let mkBrandDirty = false;
 let mkChannel = 'facebook', mkStarted = false, mkBusy = false;
 
 function initMarketing(uid) {
@@ -1249,6 +1280,12 @@ function mkSubscribe() {
     sel.innerHTML = `<optgroup label="Nadcházející">${opts(up)}</optgroup><optgroup label="Proběhlé (posledních 10)">${opts(past)}</optgroup>`;
     if (keep && [...sel.options].some(o => o.value === keep)) sel.value = keep;
   }, () => {});
+  onValue(ref(db, 'marketing/brand'), snap => {
+    const b = snap.val() || {};
+    if (!mkBrandDirty) MK_BRAND_FIELDS.forEach(k => { document.getElementById('mk-b-' + k).value = b[k] || ''; });
+    const who = b.updatedBy?.name, when = b.updatedAt ? new Date(b.updatedAt).toLocaleString('cs-CZ', { day: 'numeric', month: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+    document.getElementById('mk-brand-meta').textContent = who ? `Naposledy upravil ${who}, ${when}` : 'Zatím nenastaveno.';
+  }, () => {});
   onValue(ref(db, 'marketing/drafts'), snap => {
     const list = Object.entries(snap.val() || {}).map(([id, d]) => ({ id, ...d })).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)).slice(0, 30);
     list.forEach(d => { mkDrafts[d.id] = d; });
@@ -1262,6 +1299,7 @@ function mkCardHtml(d) {
     <div class="mk-draft-meta"><strong>${escHtml(d.akceNazev || '?')}</strong><span>${escHtml(MK_CHANNELS[d.kanal] || d.kanal || '')}</span><span>${escHtml(d.createdBy?.name || '')}</span><span>${escHtml(when)}</span></div>
     <pre class="mk-draft-text">${escHtml(d.text || '')}</pre>
     ${d.instrukce ? `<div class="mk-draft-meta" style="margin:8px 0 0;">Pokyny: ${escHtml(d.instrukce)}</div>` : ''}
+    ${d.warnings?.length ? `<div class="mk-warn">⚠ ${d.warnings.map(escHtml).join('<br>⚠ ')}</div>` : ''}
     <div class="mk-draft-actions"><button type="button" data-act="copy">Kopírovat</button><button type="button" data-act="reuse">Upravit zadání</button></div>
   </div>`;
 }
@@ -1310,6 +1348,28 @@ document.getElementById('mk-channels').addEventListener('click', e => {
   document.querySelectorAll('.mk-channel').forEach(x => x.classList.toggle('active', x === b));
 });
 document.getElementById('mk-go').addEventListener('click', mkGenerate);
+document.getElementById('mk-brand').addEventListener('input', () => { mkBrandDirty = true; });
+document.getElementById('mk-brand-save').addEventListener('click', async () => {
+  const btn = document.getElementById('mk-brand-save');
+  const brand = Object.fromEntries(MK_BRAND_FIELDS.map(k => [k, document.getElementById('mk-b-' + k).value]));
+  btn.disabled = true; btn.textContent = 'Ukládám…';
+  try {
+    const idToken = await auth.currentUser.getIdToken();
+    const res = await fetch(MAREK_MARKETING_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
+      body: JSON.stringify({ action: 'brand_save', brand })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || 'Uložení se nezdařilo.');
+    mkBrandDirty = false;
+    showToast('Pravidla uložena.');
+  } catch (e) {
+    showToast(e.message);
+  } finally {
+    btn.disabled = false; btn.textContent = 'Uložit pravidla';
+  }
+});
 document.getElementById('marketing-view').addEventListener('click', e => {
   const b = e.target.closest('button[data-act]'); if (!b) return;
   const d = mkDrafts[b.closest('.mk-card')?.dataset.id]; if (!d) return;
