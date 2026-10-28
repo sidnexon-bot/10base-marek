@@ -1495,7 +1495,9 @@ function mkSubscribe() {
     sel.innerHTML = `<optgroup label="Nadcházející">${opts(up)}</optgroup><optgroup label="Proběhlé (posledních 10)">${opts(past)}</optgroup>`;
     if (keep && [...sel.options].some(o => o.value === keep)) sel.value = keep;
     const psel = document.getElementById('mk-p-akce'), pkeep = psel.value;
-    psel.innerHTML = up.length ? opts(up) : '<option value="">Žádná nadcházející akce</option>';
+    // plán se dělá jen pro veřejné akce: interní (zkouška, soustředění…) a zrušené se nenabízejí (server to hlídá znovu)
+    const pub = up.filter(a => !/zkou[sš]k|soust[rř]ed|sch[uů]z|porad|brig[aá]d|grilov/i.test(`${a.type || ''} ${a.name || ''}`) && a.is_grilovacka !== true && !/zruš|nápad|proběhl/i.test(a.status || ''));
+    psel.innerHTML = pub.length ? opts(pub) : '<option value="">Žádná nadcházející veřejná akce</option>';
     if (pkeep && [...psel.options].some(o => o.value === pkeep)) psel.value = pkeep;
   }, () => {});
   onValue(ref(db, 'marketing/plans'), snap => {
