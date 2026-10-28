@@ -758,6 +758,34 @@
   .mk-panel-actions button:disabled { opacity: 0.5; cursor: not-allowed; }
   .mk-panel-actions .mk-hint { font-size: 12px; color: var(--text-dim); }
   .mk-inline-err { color: #e0574a; font-size: 12px; margin-top: 6px; }
+  .mk-tabs { display: flex; gap: 6px; margin: 0 0 16px; padding: 4px; background: var(--surface); border-radius: 14px; }
+  .mk-tabs button { flex: 1; background: transparent; border: none; border-radius: 10px; padding: 9px 12px; color: var(--text-dim); font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+  .mk-tabs button.active { background: var(--surface2); color: var(--text); }
+  .mk-goals { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 8px; }
+  .mk-goal { text-align: left; background: var(--surface2); border: 1px solid transparent; border-radius: 12px; padding: 10px 12px; color: var(--text); font-family: inherit; cursor: pointer; }
+  .mk-goal b { display: block; font-size: 13px; margin-bottom: 2px; }
+  .mk-goal span { display: block; font-size: 12px; color: var(--text-dim); line-height: 1.4; }
+  .mk-goal.active { border-color: var(--accent); }
+  .mk-card input[type=text].mk-in { width: 100%; box-sizing: border-box; background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 10px 12px; color: var(--text); font-family: inherit; font-size: 14px; }
+  .mk-plan-sum { margin: 10px 0 4px; line-height: 1.55; font-size: 14px; }
+  .mk-plan details { border-top: 1px solid var(--border); padding: 10px 0 2px; }
+  .mk-plan details:first-of-type { margin-top: 10px; }
+  .mk-plan summary { cursor: pointer; font-size: 13px; font-weight: 600; padding-bottom: 8px; }
+  .mk-plan ul { margin: 0 0 10px; padding-left: 18px; font-size: 13px; line-height: 1.55; }
+  .mk-plan .mk-pl { font-size: 13px; line-height: 1.5; margin: 0 0 10px; }
+  .mk-plan .mk-pl em { font-style: normal; color: var(--text-dim); }
+  .mk-tl { list-style: none; padding: 0 !important; margin: 0 0 10px; }
+  .mk-tl li { display: grid; grid-template-columns: 84px 1fr; gap: 4px 12px; padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 13px; line-height: 1.5; }
+  .mk-tl li:last-child { border-bottom: none; }
+  .mk-tl li.past { opacity: 0.55; }
+  .mk-tl .when { font-weight: 600; }
+  .mk-tl .when small { display: block; font-weight: 400; color: var(--text-dim); }
+  .mk-tl .what b { margin-right: 6px; }
+  .mk-tl .what small { color: var(--text-dim); }
+  .mk-tl .go { margin-top: 6px; background: var(--surface2); border: none; border-radius: 999px; padding: 6px 12px; color: var(--text); font-family: inherit; font-size: 12px; cursor: pointer; }
+  .mk-tl .go:disabled { opacity: 0.5; cursor: wait; }
+  .mk-chan { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; border: 1px solid var(--border); color: var(--text-dim); }
+  .mk-note { font-size: 12px; color: var(--text-dim); line-height: 1.5; margin: 6px 0 0; }
   .mk-ver, .mk-com { border-top: 1px solid var(--border); padding: 10px 0; font-size: 13px; line-height: 1.5; overflow-wrap: anywhere; }
   .mk-ver:first-child, .mk-com:first-child { border-top: none; padding-top: 0; }
   .mk-ver-head, .mk-com-head { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; font-size: 12px; color: var(--text-dim); }
@@ -1037,11 +1065,14 @@
   .mk-draft-text, .mk-ver-text { border-radius: 12px; }
   .mk-draft-actions button, .mk-panel-actions button { border-radius: 999px; }
   .mk-filters button { border-radius: 999px; }
+  .mk-tabs { border-radius: 16px; }
 
   @media (max-width: 700px) {
     #messages { padding: 0 10px; }
     .msg-body { max-width: 84%; }
     #marketing-view { padding: 14px; }
+    .mk-tl li { grid-template-columns: 1fr; }
+    .mk-tl .when small { display: inline; margin-left: 6px; }
   }
 </style>
 </head>
@@ -1179,6 +1210,11 @@
         <button type="button" class="mk-go" id="mk-brand-save">Uložit pravidla</button>
         <div class="mk-brand-meta" id="mk-brand-meta"></div>
       </details>
+      <div class="mk-tabs" id="mk-tabs" role="tablist">
+        <button type="button" class="active" data-tab="texts" role="tab" aria-selected="true">Návrhy textů</button>
+        <button type="button" data-tab="plan" role="tab" aria-selected="false">Marketingový plán</button>
+      </div>
+      <div id="mk-sec-texts">
       <div class="mk-card">
         <h2>Nový návrh textu</h2>
         <label class="mk-label" for="mk-akce">Akce</label>
@@ -1197,6 +1233,29 @@
       <div class="mk-section-title">Návrhy</div>
       <div class="mk-filters" id="mk-filters"></div>
       <div id="mk-list"><div class="mk-empty">Zatím žádné návrhy.</div></div>
+      </div>
+      <div id="mk-sec-plan" hidden>
+        <div class="mk-card">
+          <h2>Nový marketingový plán</h2>
+          <p class="mk-hint">Marek navrhne, komu, kam, kdy a v jakém stylu akci propagovat. Časy a frekvence vycházejí z obecných zvyklostí sítí, ne ze statistik vašich účtů. Fakta bere z databáze akcí a pravidel značky.</p>
+          <label class="mk-label" for="mk-p-akce">Akce</label>
+          <select id="mk-p-akce"></select>
+          <span class="mk-label">Cíl</span>
+          <div class="mk-goals" id="mk-goals">
+            <button type="button" class="mk-goal active" data-goal="koncert"><b>Přilákat lidi na koncert</b><span>Zaplnit sál: oznámení, připomínky, poslední výzva</span></button>
+            <button type="button" class="mk-goal" data-goal="sledovanost"><b>Zvýšit sledovanost na sítích</b><span>Nové sledující: krátká videa, zákulisí, pravidelnost</span></button>
+            <button type="button" class="mk-goal" data-goal="povedomi"><b>Zvýšit povědomí o skupině</b><span>Oslovit lidi, kteří 10men ještě neznají</span></button>
+            <button type="button" class="mk-goal" data-goal="nabor"><b>Získat nové členy</b><span>Oslovit zpěváky, kteří se mohou přidat</span></button>
+          </div>
+          <label class="mk-label" for="mk-p-aud">Cílové publikum (nepovinné, jinak ho navrhne Marek)</label>
+          <input type="text" class="mk-in" id="mk-p-aud" maxlength="400" placeholder="Např. rodiny z okolí Lužné, absolventi sborového zpěvu, mladí lidé do 30 let…">
+          <label class="mk-label" for="mk-p-instr">Pokyny pro Marka (nepovinné)</label>
+          <textarea id="mk-p-instr" maxlength="1000" placeholder="Např. vstup je zdarma; na Instagramu máme jen příspěvky, ne videa; plakát už je vytištěný…"></textarea>
+          <button type="button" class="mk-go" id="mk-p-go">Navrhnout plán</button>
+        </div>
+        <div class="mk-section-title">Plány</div>
+        <div id="mk-plans"><div class="mk-empty">Zatím žádné plány.</div></div>
+      </div>
     </div>
   </div>
 
@@ -1406,6 +1465,10 @@ const mkVersions = {}, mkComments = {}, mkSubs = {};
 const MK_BRAND_FIELDS = ['tonalita', 'zakazano', 'hashtagy', 'podpis', 'fakta'];
 let mkBrandDirty = false;
 let mkChannel = 'facebook', mkStarted = false, mkBusy = false;
+const MK_PCH = { facebook: 'Facebook', instagram: 'Instagram', plakat: 'Plakát', newsletter: 'Newsletter', udalost: 'Událost na Facebooku', mistni: 'Místní kanály', osobne: 'Osobní pozvánky členů' };
+const MK_TEXTCH = ['facebook', 'instagram', 'plakat', 'newsletter'];
+let mkPlans = {}, mkPlanGoal = 'koncert', mkPlanBusy = false;
+const mkPlanOpen = {};                // id plánu -> { sekce: otevřeno }
 
 function initMarketing(uid) {
   if (mkStarted) return;
@@ -1431,6 +1494,13 @@ function mkSubscribe() {
     const opts = list => list.map(a => `<option value="${escHtml(a.id)}">${escHtml(fmt(a))}</option>`).join('');
     sel.innerHTML = `<optgroup label="Nadcházející">${opts(up)}</optgroup><optgroup label="Proběhlé (posledních 10)">${opts(past)}</optgroup>`;
     if (keep && [...sel.options].some(o => o.value === keep)) sel.value = keep;
+    const psel = document.getElementById('mk-p-akce'), pkeep = psel.value;
+    psel.innerHTML = up.length ? opts(up) : '<option value="">Žádná nadcházející akce</option>';
+    if (pkeep && [...psel.options].some(o => o.value === pkeep)) psel.value = pkeep;
+  }, () => {});
+  onValue(ref(db, 'marketing/plans'), snap => {
+    mkPlans = snap.val() || {};
+    mkRenderPlans();
   }, () => {});
   onValue(ref(db, 'marketing/brand'), snap => {
     const b = snap.val() || {};
@@ -1683,6 +1753,120 @@ document.getElementById('marketing-view').addEventListener('click', async e => {
     if (act === 'refine-go') b.textContent = 'Přepsat s Markem';
   } finally {
     b.disabled = false;
+  }
+});
+
+// ── MARKETINGOVÝ PLÁN ──
+const mkFmtDay = iso => { const [y, m, d] = String(iso).split('-').map(Number); return `${d}. ${m}.`; };
+const mkTodayIso = () => { const t = new Date(); return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`; };
+
+function mkPlanText(p) {
+  const L = [];
+  L.push(`MARKETINGOVÝ PLÁN: ${p.akceNazev || ''}${p.akceDatum ? ' (' + new Date(p.akceDatum).toLocaleDateString('cs-CZ') + ')' : ''}`, `Cíl: ${p.cilNazev || p.cil}`, '', p.shrnuti || '');
+  if (p.publikum?.length) { L.push('', 'CÍLOVÉ PUBLIKUM'); p.publikum.forEach(x => L.push(`- ${x.skupina}: ${x.popis}${x.kde ? ' (kde: ' + x.kde + ')' : ''}`)); }
+  if (p.styl) {
+    L.push('', 'STYL PŘÍSPĚVKŮ', p.styl.tonalita || '');
+    (p.styl.obsah || []).forEach(x => L.push('- ' + x));
+    if (p.styl.vyhnoutSe?.length) { L.push('Vyhnout se:'); p.styl.vyhnoutSe.forEach(x => L.push('- ' + x)); }
+  }
+  if (p.kanaly?.length) { L.push('', 'KANÁLY A FORMÁTY'); p.kanaly.forEach(k => L.push(`- ${MK_PCH[k.kanal] || k.kanal}: ${k.role}; formát: ${k.format}; frekvence: ${k.frekvence}`)); }
+  L.push('', 'HARMONOGRAM');
+  (p.harmonogram || []).forEach(h => L.push(`${h.den} ${mkFmtDay(h.datum)} ${h.cas}, ${MK_PCH[h.kanal] || h.kanal}${h.format ? ' (' + h.format + ')' : ''}: ${h.ucel}${h.napad ? ' – ' + h.napad : ''}`));
+  if (p.metriky?.length) { L.push('', 'CO SLEDOVAT'); p.metriky.forEach(m => L.push(`- ${m.nazev}: ${m.jakMerit}`)); }
+  if (p.poznamky?.length) { L.push('', 'POZNÁMKY'); p.poznamky.forEach(x => L.push('- ' + x)); }
+  if (p.poznamkaCasy) L.push('', p.poznamkaCasy);
+  return L.join('\n');
+}
+
+function mkPlanHtml(p) {
+  const open = mkPlanOpen[p.id] || {}, today = mkTodayIso();
+  const det = (k, title, body, dflt) => body ? `<details data-k="${k}"${(open[k] ?? dflt) ? ' open' : ''}><summary>${title}</summary>${body}</details>` : '';
+  const ul = a => a?.length ? `<ul>${a.map(x => `<li>${escHtml(x)}</li>`).join('')}</ul>` : '';
+  const aud = (p.publikum || []).map(x => `<p class="mk-pl"><b>${escHtml(x.skupina)}</b><br>${escHtml(x.popis)}${x.kde ? `<br><em>Kde je potkat: ${escHtml(x.kde)}</em>` : ''}</p>`).join('');
+  const style = p.styl ? `<p class="mk-pl">${escHtml(p.styl.tonalita || '')}</p>${ul(p.styl.obsah)}${p.styl.vyhnoutSe?.length ? `<p class="mk-pl"><em>Vyhnout se:</em></p>${ul(p.styl.vyhnoutSe)}` : ''}` : '';
+  const chans = (p.kanaly || []).map(k => `<p class="mk-pl"><span class="mk-chan">${escHtml(MK_PCH[k.kanal] || k.kanal)}</span> ${escHtml(k.role)}<br><em>Formát: ${escHtml(k.format)} · Frekvence: ${escHtml(k.frekvence)}</em></p>`).join('');
+  const tl = (p.harmonogram || []).map((h, i) => `<li class="${h.datum < today ? 'past' : ''}">
+      <div class="when">${escHtml(mkFmtDay(h.datum))}<small>${escHtml(h.den)} ${escHtml(h.cas)}</small></div>
+      <div class="what"><b>${escHtml(h.ucel)}</b><span class="mk-chan">${escHtml(MK_PCH[h.kanal] || h.kanal)}</span>${h.format ? ` <small>${escHtml(h.format)}</small>` : ''}<br>${escHtml(h.napad)}
+        ${MK_TEXTCH.includes(h.kanal) ? `<br><button type="button" class="go" data-pact="item-text" data-i="${i}">Vytvořit text s Markem</button>` : ''}</div></li>`).join('');
+  const met = (p.metriky || []).map(m => `<li><b>${escHtml(m.nazev)}</b>: ${escHtml(m.jakMerit)}</li>`).join('');
+  return `<div class="mk-card mk-plan" data-pid="${escHtml(p.id)}">
+    <div class="mk-draft-meta"><strong>${escHtml(p.akceNazev || '?')}</strong><span>${escHtml(p.cilNazev || p.cil || '')}</span></div>
+    <div class="mk-draft-meta mk-sub"><span>${escHtml(p.createdBy?.name || '')}</span><span>${escHtml(mkWhen(p.createdAt))}</span>${p.publikumVstup ? `<span>Publikum: ${escHtml(p.publikumVstup)}</span>` : ''}</div>
+    <p class="mk-plan-sum">${escHtml(p.shrnuti || '')}</p>
+    ${p.warnings?.length ? `<div class="mk-warn">⚠ ${p.warnings.map(escHtml).join('<br>⚠ ')}</div>` : ''}
+    ${det('aud', 'Cílové publikum', aud, true)}${det('style', 'Doporučený styl příspěvků', style, true)}${det('chan', 'Kanály a formáty', chans, false)}
+    ${det('tl', `Harmonogram (${(p.harmonogram || []).length})`, `<ul class="mk-tl">${tl}</ul>${p.poznamkaCasy ? `<p class="mk-note">${escHtml(p.poznamkaCasy)}</p>` : ''}`, true)}
+    ${det('met', 'Co sledovat', met ? `<ul>${met}</ul>` : '', false)}${det('note', 'Poznámky', ul(p.poznamky), false)}
+    <div class="mk-draft-actions" style="margin-top:12px;"><button type="button" data-pact="copy">Kopírovat plán</button><button type="button" data-pact="delete">Smazat</button></div>
+  </div>`;
+}
+
+function mkRenderPlans() {
+  const box = document.getElementById('mk-plans');
+  const items = Object.entries(mkPlans).map(([id, p]) => ({ id, ...p })).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+  if (!items.length) { box.innerHTML = '<div class="mk-empty">Zatím žádné plány.</div>'; return; }
+  box.innerHTML = items.map(mkPlanHtml).join('');
+}
+
+async function mkPlanGenerate() {
+  if (mkPlanBusy) return;
+  const akceId = document.getElementById('mk-p-akce').value;
+  if (!akceId) { showToast('Vyber nadcházející akci.'); return; }
+  const btn = document.getElementById('mk-p-go');
+  mkPlanBusy = true; btn.disabled = true; btn.textContent = 'Marek plánuje…';
+  try {
+    const audience = document.getElementById('mk-p-aud').value.trim(), instructions = document.getElementById('mk-p-instr').value.trim();
+    const r = await mkCall({ action: 'plan_generate', akceId, goal: mkPlanGoal, ...(audience ? { audience } : {}), ...(instructions ? { instructions } : {}) });
+    mkPlans[r.plan.id] = r.plan; mkRenderPlans();
+    document.querySelector(`#mk-plans [data-pid="${CSS.escape(r.plan.id)}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  } catch (e) {
+    showToast(e.message);
+  } finally {
+    mkPlanBusy = false; btn.disabled = false; btn.textContent = 'Navrhnout plán';
+  }
+}
+
+function mkShowTab(tab) {
+  document.querySelectorAll('#mk-tabs button').forEach(b => { const on = b.dataset.tab === tab; b.classList.toggle('active', on); b.setAttribute('aria-selected', on); });
+  document.getElementById('mk-sec-texts').hidden = tab !== 'texts';
+  document.getElementById('mk-sec-plan').hidden = tab !== 'plan';
+}
+
+document.getElementById('mk-tabs').addEventListener('click', e => { const b = e.target.closest('button[data-tab]'); if (b) mkShowTab(b.dataset.tab); });
+document.getElementById('mk-goals').addEventListener('click', e => {
+  const b = e.target.closest('.mk-goal'); if (!b) return;
+  mkPlanGoal = b.dataset.goal;
+  document.querySelectorAll('.mk-goal').forEach(x => x.classList.toggle('active', x === b));
+});
+document.getElementById('mk-p-go').addEventListener('click', mkPlanGenerate);
+document.getElementById('mk-plans').addEventListener('toggle', e => {
+  const d = e.target, id = d.closest?.('.mk-plan')?.dataset.pid; if (!id || !d.dataset?.k) return;
+  (mkPlanOpen[id] = mkPlanOpen[id] || {})[d.dataset.k] = d.open;
+}, true);
+document.getElementById('mk-plans').addEventListener('click', async e => {
+  const b = e.target.closest('button[data-pact]'); if (!b) return;
+  const id = b.closest('.mk-plan').dataset.pid, p = mkPlans[id]; if (!p) return;
+  const act = b.dataset.pact;
+  if (act === 'copy') return mkCopy(mkPlanText({ id, ...p }));
+  b.disabled = true;
+  try {
+    if (act === 'delete') {
+      if (!confirm('Smazat tento plán? Návrhy textů vytvořené podle něj zůstanou.')) return;
+      await mkCall({ action: 'plan_delete', planId: id });
+      delete mkPlans[id]; mkRenderPlans(); showToast('Plán smazán.');
+    } else if (act === 'item-text') {
+      const h = p.harmonogram?.[Number(b.dataset.i)]; if (!h) return;
+      b.textContent = 'Marek píše…';
+      const instructions = `Příspěvek podle marketingového plánu (cíl: ${p.cilNazev || p.cil}). Zveřejnění: ${h.den} ${mkFmtDay(h.datum)} v ${h.cas}. Záměr příspěvku: ${h.ucel}. Námět (jde o nápad, ne o ověřená fakta): ${h.napad}`.slice(0, 1000);
+      const r = await mkCall({ akceId: p.akceId, channel: h.kanal, instructions });
+      mkDrafts[r.draft.id] = r.draft; mkFilter = 'aktivni'; mkJumpTo = r.draft.id; mkRenderFilters();
+      mkShowTab('texts'); mkRenderList(); showToast('Návrh textu je v záložce Návrhy textů.');
+    }
+  } catch (err) {
+    showToast(err.message);
+  } finally {
+    b.disabled = false; if (act === 'item-text') b.textContent = 'Vytvořit text s Markem';
   }
 });
 
