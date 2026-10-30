@@ -13,6 +13,15 @@ window.tenChrome = function (light) {
     if (!m) { m = document.createElement('meta'); m.name = n; document.head.appendChild(m); }
     m.content = n === 'theme-color' ? bg : (light ? 'light' : 'dark');
   });
+    // iOS 26 ignoruje theme-color a barvu horní lišty bere z prvku těsně u horního okraje: pevný proužek se barví s režimem
+    var t = document.getElementById('ten-tint');
+    if (!t) {
+      t = document.createElement('div'); t.id = 'ten-tint'; t.setAttribute('aria-hidden', 'true');
+      t.style.cssText = 'position:fixed;top:0;left:0;right:0;height:max(env(safe-area-inset-top),6px);pointer-events:none;z-index:0';
+      (document.body || document.documentElement).appendChild(t);
+    }
+    t.style.backgroundColor = bg;
+  if (!document.body) document.addEventListener('DOMContentLoaded', function () { var x = document.getElementById('ten-tint'); if (x && x.parentNode !== document.body) document.body.appendChild(x); });
 };
 window.tenChrome(localStorage.getItem('marek_theme') === 'light');
 </script>
