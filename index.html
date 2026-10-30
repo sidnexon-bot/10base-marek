@@ -3,6 +3,19 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<script>
+// Barva horní lišty a stavového řádku telefonu sleduje režim (jeden tag, mění se jen obsah)
+window.tenChrome = function (light) {
+  var bg = light ? '#f2f2f7' : '#111111', root = document.documentElement;
+  root.style.colorScheme = light ? 'light' : 'dark'; root.style.backgroundColor = bg;
+  ['theme-color', 'color-scheme'].forEach(function (n) {
+    var m = document.querySelector('meta[name="' + n + '"]');
+    if (!m) { m = document.createElement('meta'); m.name = n; document.head.appendChild(m); }
+    m.content = n === 'theme-color' ? bg : (light ? 'light' : 'dark');
+  });
+};
+window.tenChrome(localStorage.getItem('marek_theme') === 'light');
+</script>
 <title>Marek – 10men AI</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,600;1,400&display=swap" rel="stylesheet">
 <link rel="manifest" href="manifest.json?v=2">
@@ -2268,6 +2281,7 @@ function showToast(msg) {
     $iconDark.style.display = isLight ? 'none' : 'block';
     $iconLight.style.display = isLight ? 'block' : 'none';
     localStorage.setItem('marek_theme', isLight ? 'light' : 'dark');
+    window.tenChrome(isLight);
   });
 
 // iOS keyboard fix
