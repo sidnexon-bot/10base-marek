@@ -1551,6 +1551,7 @@ function mkSubscribe() {
   onValue(ref(db, 'marketing/drafts'), snap => {
     mkAll = Object.entries(snap.val() || {}).map(([id, d]) => ({ id, ...d })).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)).slice(0, 60);
     mkAll.forEach(d => { mkDrafts[d.id] = d; });
+    if (!mkBatch) mkRenderPlans();
     if (mkDeep && mkDeep.navrh && mkDrafts[mkDeep.navrh]) { mkJumpTo = mkDeep.navrh; mkFilter = mkDrafts[mkDeep.navrh].status === 'archiv' ? 'archiv' : 'aktivni'; mkDeep = null; mkRenderFilters(); setView('marketing'); mkShowTab('texts'); }
     mkRenderList();
   }, () => {});
@@ -1820,6 +1821,43 @@ function mkPlanText(p) {
   return L.join('\n');
 }
 
+// Pokyn pro text příspěvku z položky harmonogramu (jedna položka i hromadné vytvoření)
+const mkItemInstructions = (p, h) => `Příspěvek podle marketingového plánu (cíl: ${p.cilNazev || p.cil}). Zveřejnění: ${h.den} ${mkFmtDay(h.datum)} v ${h.cas}. Záměr příspěvku: ${h.ucel}. Námět (jde o nápad, ne o ověřená fakta): ${h.napad}`.slice(0, 1000);
+const mkNavrhu = n => n === 1 ? 'návrh' : n < 5 ? 'návrhy' : 'návrhů';
+const mkTaskKey = h => `p_${h.datum}_${h.kanal}`;
+// Položky plánu, ke kterým má Marek napsat text: kanál s textem, termín ještě nenastal a návrh k úkolu zatím neexistuje
+function mkMissingItems(p) {
+  const today = mkTodayIso(), have = new Set(Object.values(mkDrafts).filter(d => d && d.akceId === p.akceId && d.taskId && (d.status || 'navrh') !== 'archiv').map(d => d.taskId));
+  return (p.harmonogram || []).filter(h => MK_TEXTCH.includes(h.kanal) && h.datum >= today && !have.has(mkTaskKey(h)));
+}
+let mkBatch = null;   // { pid, done, total } po dobu hromadného vytváření
+const mkSleep = ms => new Promise(r => setTimeout(r, ms));
+async function mkBatchDrafts(pid) {
+  const p = mkPlans[pid]; if (!p || mkBatch) return;
+  const items = mkMissingItems(p);
+  if (!items.length) { showToast('Ke všem příspěvkům už návrh existuje.'); return; }
+  if (!confirm(`Marek napíše ${items.length} ${mkNavrhu(items.length)} (asi ${Math.ceil(items.length * 15 / 60)} min). Návrhy se objeví v záložce Návrhy textů a propojí se s úkoly v 10base. Pokračovat?`)) return;
+  mkBatch = { pid, done: 0, total: items.length }; mkRenderPlans();
+  let failed = null;
+  for (const h of items) {
+    try {
+      let r;
+      try { r = await mkCall({ akceId: p.akceId, channel: h.kanal, instructions: mkItemInstructions(p, h), taskId: mkTaskKey(h) }); }
+      catch (e) { if (e.status !== 429) throw e; await mkSleep(65000); r = await mkCall({ akceId: p.akceId, channel: h.kanal, instructions: mkItemInstructions(p, h), taskId: mkTaskKey(h) }); }   // limit je 10 textů za minutu
+      mkDrafts[r.draft.id] = r.draft; mkBatch.done++; mkRenderPlans();
+    } catch (e) { failed = e.message; break; }
+  }
+  const done = mkBatch.done; mkBatch = null; mkRenderPlans();
+  mkFilter = 'aktivni'; mkRenderFilters(); mkRenderList();
+  showToast(failed ? `Hotovo ${done} z ${items.length}, pak se to zastavilo: ${failed}` : `Hotovo: ${done} ${mkNavrhu(done)} ${done === 1 ? 'je' : done < 5 ? 'jsou' : 'je'} v záložce Návrhy textů.`);
+}
+
+function mkBatchBtn(p) {
+  if (mkBatch) return mkBatch.pid === p.id ? `<button type="button" class="go" disabled>Marek píše ${mkBatch.done + 1}/${mkBatch.total}…</button>` : '';
+  const n = mkMissingItems(p).length;
+  return n ? `<button type="button" class="go" data-pact="all-texts">Vytvořit všechny texty (${n})</button>` : '';
+}
+
 function mkPlanHtml(p) {
   const open = mkPlanOpen[p.id] || {}, today = mkTodayIso();
   const det = (k, title, body, dflt) => body ? `<details data-k="${k}"${(open[k] ?? dflt) ? ' open' : ''}><summary>${title}</summary>${body}</details>` : '';
@@ -1841,7 +1879,7 @@ function mkPlanHtml(p) {
     ${det('tl', `Harmonogram (${(p.harmonogram || []).length})`, `<ul class="mk-tl">${tl}</ul>${p.poznamkaCasy ? `<p class="mk-note">${escHtml(p.poznamkaCasy)}</p>` : ''}`, true)}
     ${det('met', 'Co sledovat', met ? `<ul>${met}</ul>` : '', false)}${det('note', 'Poznámky', ul(p.poznamky), false)}
     ${p.prevedeno ? `<p class="mk-note">✓ Převedeno do 10base ${escHtml(mkWhen(p.prevedeno.at))}${p.prevedeno.by ? ` (${escHtml(p.prevedeno.by)})` : ''}. Úkoly odškrtáváš a upravuješ v 10base v sekci Marketing u akce.</p>` : `<p class="mk-note">Až bude plán hotový, převeď ho do 10base. Harmonogram se stane úkoly u akce, které půjde odškrtávat.</p>`}
-    <div class="mk-draft-actions" style="margin-top:12px;"><button type="button" class="go" data-pact="to-event">${p.prevedeno ? 'Převést znovu do 10base' : 'Převést do 10base'}</button><button type="button" data-pact="copy">Kopírovat plán</button><button type="button" data-pact="delete">Smazat</button></div>
+    <div class="mk-draft-actions" style="margin-top:12px;"><button type="button" class="go" data-pact="to-event">${p.prevedeno ? 'Převést znovu do 10base' : 'Převést do 10base'}</button>${mkBatchBtn(p)}<button type="button" data-pact="copy">Kopírovat plán</button><button type="button" data-pact="delete">Smazat</button></div>
   </div>`;
 }
 
@@ -1903,10 +1941,12 @@ document.getElementById('mk-plans').addEventListener('click', async e => {
       b.dataset.label = b.textContent; b.textContent = 'Převádím…';
       const r = await mkCall({ action: 'plan_to_event', planId: id });
       showToast(`Hotovo: ${r.pridano} úkolů je v 10base u akce ${r.akceNazev || ''}.`);
+    } else if (act === 'all-texts') {
+      await mkBatchDrafts(id);
     } else if (act === 'item-text') {
       const h = p.harmonogram?.[Number(b.dataset.i)]; if (!h) return;
       b.textContent = 'Marek píše…';
-      const instructions = `Příspěvek podle marketingového plánu (cíl: ${p.cilNazev || p.cil}). Zveřejnění: ${h.den} ${mkFmtDay(h.datum)} v ${h.cas}. Záměr příspěvku: ${h.ucel}. Námět (jde o nápad, ne o ověřená fakta): ${h.napad}`.slice(0, 1000);
+      const instructions = mkItemInstructions(p, h);
       const r = await mkCall({ akceId: p.akceId, channel: h.kanal, instructions, taskId: `p_${h.datum}_${h.kanal}` });
       mkDrafts[r.draft.id] = r.draft; mkFilter = 'aktivni'; mkJumpTo = r.draft.id; mkRenderFilters();
       mkShowTab('texts'); mkRenderList(); showToast('Návrh textu je v záložce Návrhy textů.');
