@@ -1822,7 +1822,8 @@ function mkPlanHtml(p) {
     ${det('aud', 'Cílové publikum', aud, true)}${det('style', 'Doporučený styl příspěvků', style, true)}${det('chan', 'Kanály a formáty', chans, false)}
     ${det('tl', `Harmonogram (${(p.harmonogram || []).length})`, `<ul class="mk-tl">${tl}</ul>${p.poznamkaCasy ? `<p class="mk-note">${escHtml(p.poznamkaCasy)}</p>` : ''}`, true)}
     ${det('met', 'Co sledovat', met ? `<ul>${met}</ul>` : '', false)}${det('note', 'Poznámky', ul(p.poznamky), false)}
-    <div class="mk-draft-actions" style="margin-top:12px;"><button type="button" data-pact="copy">Kopírovat plán</button><button type="button" data-pact="delete">Smazat</button></div>
+    ${p.prevedeno ? `<p class="mk-note">✓ Převedeno do 10base ${escHtml(mkWhen(p.prevedeno.at))}${p.prevedeno.by ? ` (${escHtml(p.prevedeno.by)})` : ''}. Úkoly odškrtáváš a upravuješ v 10base v sekci Marketing u akce.</p>` : `<p class="mk-note">Až bude plán hotový, převeď ho do 10base. Harmonogram se stane úkoly u akce, které půjde odškrtávat.</p>`}
+    <div class="mk-draft-actions" style="margin-top:12px;"><button type="button" class="go" data-pact="to-event">${p.prevedeno ? 'Převést znovu do 10base' : 'Převést do 10base'}</button><button type="button" data-pact="copy">Kopírovat plán</button><button type="button" data-pact="delete">Smazat</button></div>
   </div>`;
 }
 
@@ -1879,6 +1880,11 @@ document.getElementById('mk-plans').addEventListener('click', async e => {
       if (!confirm('Smazat tento plán? Návrhy textů vytvořené podle něj zůstanou.')) return;
       await mkCall({ action: 'plan_delete', planId: id });
       delete mkPlans[id]; mkRenderPlans(); showToast('Plán smazán.');
+    } else if (act === 'to-event') {
+      if (p.prevedeno && !confirm('Plán už byl převeden. Nový převod nahradí úkoly z plánu jeho původním zněním (tvoje úpravy textů a termínů u nich se ztratí). Ručně přidané úkoly zůstanou a hotové úkoly se stejným termínem a kanálem zůstanou hotové. Pokračovat?')) return;
+      b.dataset.label = b.textContent; b.textContent = 'Převádím…';
+      const r = await mkCall({ action: 'plan_to_event', planId: id });
+      showToast(`Hotovo: ${r.pridano} úkolů je v 10base u akce ${r.akceNazev || ''}.`);
     } else if (act === 'item-text') {
       const h = p.harmonogram?.[Number(b.dataset.i)]; if (!h) return;
       b.textContent = 'Marek píše…';
@@ -1890,7 +1896,7 @@ document.getElementById('mk-plans').addEventListener('click', async e => {
   } catch (err) {
     showToast(err.message);
   } finally {
-    b.disabled = false; if (act === 'item-text') b.textContent = 'Vytvořit text s Markem';
+    b.disabled = false; if (act === 'item-text') b.textContent = 'Vytvořit text s Markem'; else if (b.dataset.label) b.textContent = b.dataset.label;
   }
 });
 
