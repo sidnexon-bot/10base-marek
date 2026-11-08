@@ -1487,6 +1487,9 @@ const mkVersions = {}, mkComments = {}, mkSubs = {};
 const MK_BRAND_FIELDS = ['tonalita', 'zakazano', 'hashtagy', 'podpis', 'fakta'];
 let mkBrandDirty = false;
 let mkChannel = 'facebook', mkStarted = false, mkBusy = false;
+// Odkaz z 10base: ?akce=…&kanal=…&ukol=… (nový text k úkolu) nebo ?navrh=… (existující návrh); vyřídí se po načtení dat
+let mkDeep = (() => { const q = new URLSearchParams(location.search); const o = { akce: q.get('akce'), kanal: q.get('kanal'), ukol: q.get('ukol'), navrh: q.get('navrh') }; return (o.akce || o.navrh) ? o : null; })();
+let mkTaskId = null;   // úkol 10base, ke kterému se právě píše text
 const MK_PCH = { facebook: 'Facebook', instagram: 'Instagram', plakat: 'Plakát', newsletter: 'Newsletter', udalost: 'Událost na Facebooku', mistni: 'Místní kanály', osobne: 'Osobní pozvánky členů' };
 const MK_TEXTCH = ['facebook', 'instagram', 'plakat', 'newsletter'];
 let mkPlans = {}, mkPlanGoal = 'koncert', mkPlanBusy = false;
@@ -1516,6 +1519,19 @@ function mkSubscribe() {
     const opts = list => list.map(a => `<option value="${escHtml(a.id)}">${escHtml(fmt(a))}</option>`).join('');
     sel.innerHTML = `<optgroup label="Nadcházející">${opts(up)}</optgroup><optgroup label="Proběhlé (posledních 10)">${opts(past)}</optgroup>`;
     if (keep && [...sel.options].some(o => o.value === keep)) sel.value = keep;
+    if (mkDeep && mkDeep.akce && [...sel.options].some(o => o.value === mkDeep.akce)) {
+      const d = mkDeep; mkDeep = null;
+      const t = ((snap.val() || {})[d.akce]?.marketing?.ukoly || {})[d.ukol];
+      sel.value = d.akce;
+      const chBtn = document.querySelector(`.mk-channel[data-ch="${CSS.escape(d.kanal || '')}"]`);
+      if (chBtn) chBtn.click();
+      if (t) {
+        mkTaskId = t.id;
+        document.getElementById('mk-instr').value = `Příspěvek z marketingového úkolu na ${t.datum || '?'}${t.cas ? ' v ' + t.cas : ''}. Záměr: ${t.ucel || '?'}.${t.napad ? ' Námět (nápad, ne ověřená fakta): ' + t.napad : ''}`.slice(0, 1000);
+      }
+      setView('marketing'); mkShowTab('texts');
+      showToast(t ? 'Úkol z 10base je předvyplněný, stačí zvolit „Navrhnout text“.' : 'Akce je vybraná.');
+    }
     const psel = document.getElementById('mk-p-akce'), pkeep = psel.value;
     // plán se dělá jen pro veřejné akce: interní (zkouška, soustředění…) a zrušené se nenabízejí (server to hlídá znovu)
     const pub = up.filter(a => !/zkou[sš]k|soust[rř]ed|sch[uů]z|porad|brig[aá]d|grilov/i.test(`${a.type || ''} ${a.name || ''}`) && a.is_grilovacka !== true && !/zruš|nápad|proběhl/i.test(a.status || ''));
@@ -1535,6 +1551,7 @@ function mkSubscribe() {
   onValue(ref(db, 'marketing/drafts'), snap => {
     mkAll = Object.entries(snap.val() || {}).map(([id, d]) => ({ id, ...d })).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)).slice(0, 60);
     mkAll.forEach(d => { mkDrafts[d.id] = d; });
+    if (mkDeep && mkDeep.navrh && mkDrafts[mkDeep.navrh]) { mkJumpTo = mkDeep.navrh; mkFilter = mkDrafts[mkDeep.navrh].status === 'archiv' ? 'archiv' : 'aktivni'; mkDeep = null; mkRenderFilters(); setView('marketing'); mkShowTab('texts'); }
     mkRenderList();
   }, () => {});
 }
@@ -1547,7 +1564,7 @@ function mkCardHtml(d) {
   const opts = Object.entries(MK_STATUS).map(([k, l]) => `<option value="${k}"${k === st ? ' selected' : ''}>${escHtml(l)}</option>`).join('');
   const btn = (p, label) => `<button type="button" data-act="panel" data-panel="${p}"${ui.panel === p ? ' class="on"' : ''}>${label}</button>`;
   return `<div class="mk-card mk-d" data-id="${escHtml(d.id)}" data-sig="${escHtml(mkSig(d))}">
-    <div class="mk-draft-meta"><strong>${escHtml(d.akceNazev || '?')}</strong><span>${escHtml(MK_CHANNELS[d.kanal] || d.kanal || '')}</span><span class="mk-status s-${escHtml(st)}">${escHtml(MK_STATUS[st] || st)}</span></div>
+    <div class="mk-draft-meta"><strong>${escHtml(d.akceNazev || '?')}</strong><span>${escHtml(MK_CHANNELS[d.kanal] || d.kanal || '')}</span><span class="mk-status s-${escHtml(st)}">${escHtml(MK_STATUS[st] || st)}</span>${d.taskId ? '<span title="Propojeno s úkolem v 10base: po stavu Hotovo se úkol odškrtne">↔ úkol v 10base</span>' : ''}</div>
     <div class="mk-draft-meta mk-sub"><span>verze ${d.version || 1}</span><span>${escHtml(d.updatedBy?.name || d.createdBy?.name || '')}</span><span>${escHtml(mkWhen(d.updatedAt || d.createdAt))}</span></div>
     <pre class="mk-draft-text">${escHtml(d.text || '')}</pre>
     ${d.instrukce ? `<div class="mk-draft-meta" style="margin:8px 0 0;">Pokyny: ${escHtml(d.instrukce)}</div>` : ''}
@@ -1664,11 +1681,11 @@ async function mkGenerate() {
     const res = await fetch(MAREK_MARKETING_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
-      body: JSON.stringify({ akceId, channel: mkChannel, ...(instructions ? { instructions } : {}) })
+      body: JSON.stringify({ akceId, channel: mkChannel, ...(instructions ? { instructions } : {}), ...(mkTaskId ? { taskId: mkTaskId } : {}) })
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.error || 'Návrh se nepodařilo vytvořit.');
-    mkDrafts[data.draft.id] = data.draft;
+    mkDrafts[data.draft.id] = data.draft; mkTaskId = null;
     mkFilter = 'aktivni'; mkJumpTo = data.draft.id; mkRenderFilters();
     mkRenderList();
   } catch (e) {
@@ -1688,6 +1705,7 @@ document.getElementById('mk-channels').addEventListener('click', e => {
   document.querySelectorAll('.mk-channel').forEach(x => x.classList.toggle('active', x === b));
 });
 document.getElementById('mk-go').addEventListener('click', mkGenerate);
+document.getElementById('mk-akce').addEventListener('change', () => { mkTaskId = null; });   // jiná akce = už nejde o text k úkolu z odkazu
 document.getElementById('mk-brand').addEventListener('input', () => { mkBrandDirty = true; });
 document.getElementById('mk-brand-save').addEventListener('click', async () => {
   const btn = document.getElementById('mk-brand-save');
@@ -1889,7 +1907,7 @@ document.getElementById('mk-plans').addEventListener('click', async e => {
       const h = p.harmonogram?.[Number(b.dataset.i)]; if (!h) return;
       b.textContent = 'Marek píše…';
       const instructions = `Příspěvek podle marketingového plánu (cíl: ${p.cilNazev || p.cil}). Zveřejnění: ${h.den} ${mkFmtDay(h.datum)} v ${h.cas}. Záměr příspěvku: ${h.ucel}. Námět (jde o nápad, ne o ověřená fakta): ${h.napad}`.slice(0, 1000);
-      const r = await mkCall({ akceId: p.akceId, channel: h.kanal, instructions });
+      const r = await mkCall({ akceId: p.akceId, channel: h.kanal, instructions, taskId: `p_${h.datum}_${h.kanal}` });
       mkDrafts[r.draft.id] = r.draft; mkFilter = 'aktivni'; mkJumpTo = r.draft.id; mkRenderFilters();
       mkShowTab('texts'); mkRenderList(); showToast('Návrh textu je v záložce Návrhy textů.');
     }
