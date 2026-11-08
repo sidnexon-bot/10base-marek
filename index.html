@@ -769,7 +769,16 @@ window.tenChrome(localStorage.getItem('marek_theme') === 'light');
   .mk-filters button { background: var(--surface); border: 1px solid var(--border); border-radius: 999px; padding: 5px 12px; color: var(--text-dim); font-family: inherit; font-size: 12px; cursor: pointer; }
   .mk-filters button.active { border-color: var(--accent); color: var(--accent); }
   .mk-draft-actions button.on { background: var(--border); }
-  .mk-card .mk-status-sel { width: auto; padding: 8px 10px; font-size: 13px; margin-left: auto; }
+  .mk-card .mk-status-sel { width: auto; padding: 8px 10px; font-size: 13px; }
+  .mk-more-wrap { position: relative; margin-left: auto; }
+  .mk-draft-actions .mk-more { width: 38px; height: 38px; padding: 0; font-size: 20px; line-height: 1; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; }
+  .mk-draft-actions .mk-more[aria-expanded="true"] { background: var(--border); }
+  .mk-menu { position: absolute; right: 0; top: calc(100% + 6px); z-index: 20; min-width: 210px; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 6px; box-shadow: 0 8px 28px rgba(0,0,0,0.35); display: flex; flex-direction: column; gap: 2px; }
+  .mk-menu[hidden] { display: none; }
+  .mk-draft-actions .mk-menu button { width: 100%; text-align: left; background: transparent; border-radius: 10px; padding: 11px 12px; font-size: 14px; }
+  .mk-draft-actions .mk-menu button:hover, .mk-draft-actions .mk-menu button.on { background: var(--surface2); }
+  .mk-draft-actions .mk-menu button.mk-del { color: #ff6b6b; }
+  .mk-menu hr { border: none; border-top: 1px solid var(--border); margin: 4px 6px; width: auto; }
   .mk-panel { margin-top: 12px; }
   .mk-panel:empty { display: none; }
   .mk-panel textarea { min-height: 120px; }
@@ -1550,6 +1559,7 @@ function mkSubscribe() {
   }, () => {});
   onValue(ref(db, 'marketing/drafts'), snap => {
     mkAll = Object.entries(snap.val() || {}).map(([id, d]) => ({ id, ...d })).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)).slice(0, 60);
+    Object.keys(mkDrafts).forEach(k => { if (!mkAll.some(d => d.id === k)) delete mkDrafts[k]; });   // smazané návrhy z paměti pryč
     mkAll.forEach(d => { mkDrafts[d.id] = d; });
     if (!mkBatch) mkRenderPlans();
     if (mkDeep && mkDeep.navrh && mkDrafts[mkDeep.navrh]) { mkJumpTo = mkDeep.navrh; mkFilter = mkDrafts[mkDeep.navrh].status === 'archiv' ? 'archiv' : 'aktivni'; mkDeep = null; mkRenderFilters(); setView('marketing'); mkShowTab('texts'); }
@@ -1563,7 +1573,7 @@ const mkSig = d => JSON.stringify([d.version, d.status, d.updatedAt, d.commentCo
 function mkCardHtml(d) {
   const st = d.status || 'navrh', ui = mkUi[d.id] || {}, cc = d.commentCount || 0;
   const opts = Object.entries(MK_STATUS).map(([k, l]) => `<option value="${k}"${k === st ? ' selected' : ''}>${escHtml(l)}</option>`).join('');
-  const btn = (p, label) => `<button type="button" data-act="panel" data-panel="${p}"${ui.panel === p ? ' class="on"' : ''}>${label}</button>`;
+  const btn = (p, label) => `<button type="button" role="menuitem" data-act="panel" data-panel="${p}"${ui.panel === p ? ' class="on"' : ''}>${label}</button>`;
   return `<div class="mk-card mk-d" data-id="${escHtml(d.id)}" data-sig="${escHtml(mkSig(d))}">
     <div class="mk-draft-meta"><strong>${escHtml(d.akceNazev || '?')}</strong><span>${escHtml(MK_CHANNELS[d.kanal] || d.kanal || '')}</span><span class="mk-status s-${escHtml(st)}">${escHtml(MK_STATUS[st] || st)}</span>${d.taskId ? '<span title="Propojeno s úkolem v 10base: po stavu Hotovo se úkol odškrtne">↔ úkol v 10base</span>' : ''}</div>
     <div class="mk-draft-meta mk-sub"><span>verze ${d.version || 1}</span><span>${escHtml(d.updatedBy?.name || d.createdBy?.name || '')}</span><span>${escHtml(mkWhen(d.updatedAt || d.createdAt))}</span></div>
@@ -1571,8 +1581,14 @@ function mkCardHtml(d) {
     ${d.instrukce ? `<div class="mk-draft-meta" style="margin:8px 0 0;">Pokyny: ${escHtml(d.instrukce)}</div>` : ''}
     ${d.warnings?.length ? `<div class="mk-warn">⚠ ${d.warnings.map(escHtml).join('<br>⚠ ')}</div>` : ''}
     <div class="mk-draft-actions">
-      <button type="button" data-act="copy">Kopírovat</button>${btn('edit', 'Upravit')}${btn('refine', 'Přepsat s Markem')}${btn('history', 'Verze')}${btn('comments', 'Komentáře' + (cc ? ` (${cc})` : ''))}
       <select class="mk-status-sel" data-act="status" aria-label="Stav návrhu">${opts}</select>
+      <div class="mk-more-wrap">
+        <button type="button" class="mk-more" data-more aria-haspopup="menu" aria-expanded="false" aria-label="Další akce s návrhem" title="Další akce">⋮</button>
+        <div class="mk-menu" role="menu" hidden>
+          <button type="button" role="menuitem" data-act="copy">Kopírovat</button>${btn('edit', 'Upravit')}${btn('refine', 'Přepsat s Markem')}${btn('history', 'Verze')}${btn('comments', 'Komentáře' + (cc ? ` (${cc})` : ''))}
+          <hr><button type="button" role="menuitem" data-act="delete" class="mk-del">Smazat</button>
+        </div>
+      </div>
     </div>
     <div class="mk-panel" data-panelbody></div>
   </div>`;
@@ -1748,6 +1764,29 @@ document.getElementById('marketing-view').addEventListener('change', async e => 
   catch (err) { showToast(err.message); sel.value = d?.status || 'navrh'; }
 });
 
+// Nabídka ⋮ u návrhu: otevře se klepnutím, zavře po volbě, klepnutí mimo nebo klávesou Esc
+function mkCloseMenus(except) {
+  document.querySelectorAll('.mk-menu:not([hidden])').forEach(m => {
+    if (m === except) return;
+    m.hidden = true; m.parentElement.querySelector('[data-more]')?.setAttribute('aria-expanded', 'false');
+  });
+}
+document.addEventListener('click', e => {
+  const more = e.target.closest('[data-more]');
+  if (more) {
+    const menu = more.parentElement.querySelector('.mk-menu'), open = menu.hidden;
+    mkCloseMenus(menu); menu.hidden = !open; more.setAttribute('aria-expanded', String(open));
+    if (open) menu.querySelector('button')?.focus();
+    return;
+  }
+  if (!e.target.closest('.mk-menu') || e.target.closest('.mk-menu button')) mkCloseMenus();
+}, true);
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Escape') return;
+  const m = document.querySelector('.mk-menu:not([hidden])'); if (!m) return;
+  m.parentElement.querySelector('[data-more]').focus(); mkCloseMenus();
+});
+
 document.getElementById('marketing-view').addEventListener('click', async e => {
   const b = e.target.closest('button[data-act]'); if (!b) return;
   const card = b.closest('.mk-d'); if (!card) return;
@@ -1771,6 +1810,10 @@ document.getElementById('marketing-view').addEventListener('click', async e => {
       const text = card.querySelector('.mk-edit').value;
       const r = await mkCall({ action: 'draft_edit', draftId: id, text, baseVersion: ui.base });
       showToast(`Uloženo jako verze ${r.draft.version}.`); closePanel();
+    } else if (act === 'delete') {
+      if (!confirm(`Smazat tento návrh (${MK_CHANNELS[d.kanal] || d.kanal || ''}, ${d.akceNazev || '?'}) včetně verzí a komentářů? Nejde to vrátit.${d.taskId ? ' Úkol v 10base zůstane, jen bez návrhu textu.' : ''}`)) return;
+      await mkCall({ action: 'draft_delete', draftId: id });
+      delete mkDrafts[id]; mkAll = mkAll.filter(x => x.id !== id); delete mkUi[id]; mkRenderList(); mkRenderPlans(); showToast('Návrh smazán.');
     } else if (act === 'edit-reload') {
       ui.base = d.version || 1; ui.editText = undefined; mkRenderPanel(id);
     } else if (act === 'refine-go') {
