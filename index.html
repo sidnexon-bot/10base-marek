@@ -770,6 +770,22 @@ window.tenChrome(localStorage.getItem('marek_theme') === 'light');
   .mk-filters button.active { border-color: var(--accent); color: var(--accent); }
   .mk-draft-actions button.on { background: var(--border); }
   .mk-card .mk-status-sel { width: auto; padding: 8px 10px; font-size: 13px; }
+  .mk-ov-sum { margin: 0 0 12px; color: var(--text-dim); font-size: 14px; line-height: 1.5; }
+  .mk-ov-group { margin: 18px 0 8px; font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-dim); }
+  .mk-ov-group.late { color: #ff6b6b; }
+  .mk-ov-row { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; background: var(--surface); border-radius: var(--radius); padding: 14px; margin-bottom: 8px; }
+  .mk-ov-row.done { opacity: 0.6; }
+  .mk-ov-row > input[type=checkbox] { width: 20px; height: 20px; margin-top: 2px; accent-color: var(--accent); }
+  .mk-ov-title { font-weight: 600; font-size: 15px; }
+  .mk-ov-meta { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; margin-top: 4px; font-size: 12px; color: var(--text-dim); }
+  .mk-ov-meta .late { color: #ff6b6b; font-weight: 600; }
+  .mk-ov-prev { margin-top: 8px; font-size: 13px; color: var(--text-dim); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; white-space: pre-wrap; }
+  .mk-ov-act { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 10px; }
+  .mk-ov-act button { background: var(--surface2); border: none; border-radius: 999px; padding: 8px 14px; color: var(--text); font-family: inherit; font-size: 13px; cursor: pointer; }
+  .mk-ov-act button.go { background: var(--accent); color: #fff; font-weight: 600; }
+  .mk-ov-act button:disabled { opacity: 0.5; cursor: not-allowed; }
+  .mk-ov-act select { width: auto; padding: 8px 10px; font-size: 13px; }
+  .mk-status.mk-nodraft { color: var(--text-muted); border-style: dashed; }
   .mk-more-wrap { position: relative; margin-left: auto; }
   .mk-draft-actions .mk-more { width: 38px; height: 38px; padding: 0; font-size: 20px; line-height: 1; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; }
   .mk-draft-actions .mk-more[aria-expanded="true"] { background: var(--border); }
@@ -1242,10 +1258,19 @@ window.tenChrome(localStorage.getItem('marek_theme') === 'light');
         <div class="mk-brand-meta" id="mk-brand-meta"></div>
       </details>
       <div class="mk-tabs" id="mk-tabs" role="tablist">
-        <button type="button" class="active" data-tab="texts" role="tab" aria-selected="true">Návrhy textů</button>
+        <button type="button" class="active" data-tab="overview" role="tab" aria-selected="true">Přehled</button>
+        <button type="button" data-tab="texts" role="tab" aria-selected="false">Návrhy textů</button>
         <button type="button" data-tab="plan" role="tab" aria-selected="false">Marketingový plán</button>
       </div>
-      <div id="mk-sec-texts">
+      <div id="mk-sec-overview">
+        <div class="mk-card">
+          <h2>Přehled příspěvků týmu</h2>
+          <p class="mk-ov-sum" id="mk-ov-sum"></p>
+          <div class="mk-filters" id="mk-ov-filters"></div>
+        </div>
+        <div id="mk-ov-list"><div class="mk-empty">Načítám…</div></div>
+      </div>
+      <div id="mk-sec-texts" hidden>
       <div class="mk-card">
         <h2>Nový návrh textu</h2>
         <label class="mk-label" for="mk-akce">Akce</label>
@@ -1379,7 +1404,10 @@ const SESSION_KEY = 'marek_user';
 
 // Pokud není session, appka tu nemá co dělat — pryč na login
 const sessionRaw = localStorage.getItem(SESSION_KEY);
+// Odkaz z 10base (?akce=…, ?navrh=…, ?prehled=1) přežije přihlášení: parametry se na čas uloží a po přihlášení použijí
+const rememberDeepLink = () => { try { if (location.search) localStorage.setItem('marek_deeplink', JSON.stringify({ q: location.search, t: Date.now() })); } catch (e) { /* bez uložení */ } };
 if (!sessionRaw) {
+  rememberDeepLink();
   window.location.replace('login.html');
   throw new Error('no-session'); // zastaví běh skriptu — location.replace() sám o sobě nestačí
 }
@@ -1429,6 +1457,7 @@ function initMemberFromSession() {
 }
 
 function clearSessionAndRedirect() {
+  rememberDeepLink();
   localStorage.removeItem(SESSION_KEY);
   window.location.replace('login.html');
 }
@@ -1497,7 +1526,15 @@ const MK_BRAND_FIELDS = ['tonalita', 'zakazano', 'hashtagy', 'podpis', 'fakta'];
 let mkBrandDirty = false;
 let mkChannel = 'facebook', mkStarted = false, mkBusy = false;
 // Odkaz z 10base: ?akce=…&kanal=…&ukol=… (nový text k úkolu) nebo ?navrh=… (existující návrh); vyřídí se po načtení dat
-let mkDeep = (() => { const q = new URLSearchParams(location.search); const o = { akce: q.get('akce'), kanal: q.get('kanal'), ukol: q.get('ukol'), navrh: q.get('navrh') }; return (o.akce || o.navrh) ? o : null; })();
+let mkDeep = (() => {
+  let search = location.search;
+  try {
+    if (!search) { const r = JSON.parse(localStorage.getItem('marek_deeplink') || 'null'); if (r && Date.now() - r.t < 15 * 60 * 1000) search = r.q; }
+    localStorage.removeItem('marek_deeplink');
+  } catch (e) { /* bez uloženého odkazu */ }
+  const q = new URLSearchParams(search); const o = { akce: q.get('akce'), kanal: q.get('kanal'), ukol: q.get('ukol'), navrh: q.get('navrh'), prehled: q.get('prehled') };
+  return (o.akce || o.navrh || o.prehled) ? o : null;
+})();
 let mkTaskId = null;   // úkol 10base, ke kterému se právě píše text
 const MK_PCH = { facebook: 'Facebook', instagram: 'Instagram', plakat: 'Plakát', newsletter: 'Newsletter', udalost: 'Událost na Facebooku', mistni: 'Místní kanály', osobne: 'Osobní pozvánky členů' };
 const MK_TEXTCH = ['facebook', 'instagram', 'plakat', 'newsletter'];
@@ -1511,8 +1548,9 @@ function initMarketing(uid) {
   onValue(ref(db, `marketingAccess/${uid}`), snap => {
     const ok = snap.val() === true;
     document.getElementById('btn-marketing').classList.toggle('visible', ok);
-    if (ok && !subscribed) { subscribed = true; mkSubscribe(); }
+    if (ok && !subscribed) { subscribed = true; mkSubscribe(); mkOvLoadTeam(); }
     if (!ok) setView('chat');
+    if (ok && mkDeep?.prehled && !mkDeep.akce && !mkDeep.navrh) { mkDeep = null; setView('marketing'); mkShowTab('overview'); }
   }, () => { document.getElementById('btn-marketing').classList.remove('visible'); });
 }
 
@@ -1521,6 +1559,7 @@ function mkSubscribe() {
   onValue(ref(db, 'akce'), snap => {
     const sel = document.getElementById('mk-akce'), keep = sel.value;
     const today = new Date(); today.setHours(0, 0, 0, 0);
+    mkAkce = snap.val() || {}; mkOvRender();
     const all = Object.values(snap.val() || {}).filter(a => a && a.id && a.date && !String(a.date).startsWith('[') && !isNaN(new Date(a.date)));
     const fmt = a => `${a.name || '?'} – ${new Date(a.date).toLocaleDateString('cs-CZ', { day: 'numeric', month: 'numeric', year: 'numeric' })}`;
     const up = all.filter(a => new Date(a.date) >= today).sort((a, b) => new Date(a.date) - new Date(b.date));
@@ -1562,13 +1601,15 @@ function mkSubscribe() {
     Object.keys(mkDrafts).forEach(k => { if (!mkAll.some(d => d.id === k)) delete mkDrafts[k]; });   // smazané návrhy z paměti pryč
     mkAll.forEach(d => { mkDrafts[d.id] = d; });
     if (!mkBatch) mkRenderPlans();
+    mkOvRender();
     if (mkDeep && mkDeep.navrh && mkDrafts[mkDeep.navrh]) { mkJumpTo = mkDeep.navrh; mkFilter = mkDrafts[mkDeep.navrh].status === 'archiv' ? 'archiv' : 'aktivni'; mkDeep = null; mkRenderFilters(); setView('marketing'); mkShowTab('texts'); }
     mkRenderList();
   }, () => {});
 }
 
 const mkWhen = ts => ts ? new Date(ts).toLocaleString('cs-CZ', { day: 'numeric', month: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
-const mkSig = d => JSON.stringify([d.version, d.status, d.updatedAt, d.commentCount || 0, d.warnings || null, d.text, d.akceNazev]);
+const mkTaskOf = d => d.taskId && d.akceId ? mkAkce[d.akceId]?.marketing?.ukoly?.[d.taskId] || null : null;
+const mkSig = d => { const t = mkTaskOf(d); return JSON.stringify([d.version, d.status, d.updatedAt, d.commentCount || 0, d.warnings || null, d.text, d.akceNazev, t ? [t.assignee?.email || null, t.datum, t.done === true] : null]); };
 
 function mkCardHtml(d) {
   const st = d.status || 'navrh', ui = mkUi[d.id] || {}, cc = d.commentCount || 0;
@@ -1576,6 +1617,7 @@ function mkCardHtml(d) {
   const btn = (p, label) => `<button type="button" role="menuitem" data-act="panel" data-panel="${p}"${ui.panel === p ? ' class="on"' : ''}>${label}</button>`;
   return `<div class="mk-card mk-d" data-id="${escHtml(d.id)}" data-sig="${escHtml(mkSig(d))}">
     <div class="mk-draft-meta"><strong>${escHtml(d.akceNazev || '?')}</strong><span>${escHtml(MK_CHANNELS[d.kanal] || d.kanal || '')}</span><span class="mk-status s-${escHtml(st)}">${escHtml(MK_STATUS[st] || st)}</span>${d.taskId ? '<span title="Propojeno s úkolem v 10base: po stavu Hotovo se úkol odškrtne">↔ úkol v 10base</span>' : ''}</div>
+    ${(() => { const t = mkTaskOf(d); return t ? `<div class="mk-draft-meta mk-sub"><span>Úkol: ${escHtml(t.datum ? mkFmtDay(t.datum) : '')}${t.cas ? ' ' + escHtml(t.cas) : ''}</span><span>${t.assignee?.name ? 'Zodpovídá: ' + escHtml(t.assignee.name) : 'Nikdo nezodpovídá'}</span>${t.done ? '<span>✓ hotovo</span>' : ''}</div>` : ''; })()}
     <div class="mk-draft-meta mk-sub"><span>verze ${d.version || 1}</span><span>${escHtml(d.updatedBy?.name || d.createdBy?.name || '')}</span><span>${escHtml(mkWhen(d.updatedAt || d.createdAt))}</span></div>
     <pre class="mk-draft-text">${escHtml(d.text || '')}</pre>
     ${d.instrukce ? `<div class="mk-draft-meta" style="margin:8px 0 0;">Pokyny: ${escHtml(d.instrukce)}</div>` : ''}
@@ -1718,7 +1760,7 @@ document.getElementById('btn-marketing').addEventListener('click', () => {
 });
 document.getElementById('mk-channels').addEventListener('click', e => {
   const b = e.target.closest('.mk-channel'); if (!b) return;
-  mkChannel = b.dataset.ch;
+  mkChannel = b.dataset.ch; mkTaskId = null;   // jiný kanál než u úkolu z odkazu: text se k úkolu nepropojí
   document.querySelectorAll('.mk-channel').forEach(x => x.classList.toggle('active', x === b));
 });
 document.getElementById('mk-go').addEventListener('click', mkGenerate);
@@ -1867,6 +1909,7 @@ function mkPlanText(p) {
 // Pokyn pro text příspěvku z položky harmonogramu (jedna položka i hromadné vytvoření)
 const mkItemInstructions = (p, h) => `Příspěvek podle marketingového plánu (cíl: ${p.cilNazev || p.cil}). Zveřejnění: ${h.den} ${mkFmtDay(h.datum)} v ${h.cas}. Záměr příspěvku: ${h.ucel}. Námět (jde o nápad, ne o ověřená fakta): ${h.napad}`.slice(0, 1000);
 const mkNavrhu = n => n === 1 ? 'návrh' : n < 5 ? 'návrhy' : 'návrhů';
+const mkDraftOfItem = (p, h) => Object.values(mkDrafts).find(d => d && d.akceId === p.akceId && d.taskId === `p_${h.datum}_${h.kanal}` && (d.status || 'navrh') !== 'archiv');
 const mkTaskKey = h => `p_${h.datum}_${h.kanal}`;
 // Položky plánu, ke kterým má Marek napsat text: kanál s textem, termín ještě nenastal a návrh k úkolu zatím neexistuje
 function mkMissingItems(p) {
@@ -1911,7 +1954,7 @@ function mkPlanHtml(p) {
   const tl = (p.harmonogram || []).map((h, i) => `<li class="${h.datum < today ? 'past' : ''}">
       <div class="when">${escHtml(mkFmtDay(h.datum))}<small>${escHtml(h.den)} ${escHtml(h.cas)}</small></div>
       <div class="what"><b>${escHtml(h.ucel)}</b><span class="mk-chan">${escHtml(MK_PCH[h.kanal] || h.kanal)}</span>${h.format ? ` <small>${escHtml(h.format)}</small>` : ''}<br>${escHtml(h.napad)}
-        ${MK_TEXTCH.includes(h.kanal) ? `<br><button type="button" class="go" data-pact="item-text" data-i="${i}">Vytvořit text s Markem</button>` : ''}</div></li>`).join('');
+        ${MK_TEXTCH.includes(h.kanal) ? (mkDraftOfItem(p, h) ? `<br><span class="mk-status s-${escHtml(mkDraftOfItem(p, h).status || 'navrh')}">Text: ${escHtml(MK_STATUS[mkDraftOfItem(p, h).status || 'navrh'])}</span>` : `<br><button type="button" class="go" data-pact="item-text" data-i="${i}">Vytvořit text s Markem</button>`) : ''}</div></li>`).join('');
   const met = (p.metriky || []).map(m => `<li><b>${escHtml(m.nazev)}</b>: ${escHtml(m.jakMerit)}</li>`).join('');
   return `<div class="mk-card mk-plan" data-pid="${escHtml(p.id)}">
     <div class="mk-draft-meta"><strong>${escHtml(p.akceNazev || '?')}</strong><span>${escHtml(p.cilNazev || p.cil || '')}</span></div>
@@ -1951,8 +1994,132 @@ async function mkPlanGenerate() {
   }
 }
 
+// ── PŘEHLED TÝMU: všechny marketingové úkoly akcí, stav textů, zodpovědní; akce jedním klepnutím ──
+let mkAkce = {}, mkTeam = null, mkTeamAsked = false;
+const mkOv = { filter: 'vse', done: false, busy: {} };
+const MK_OV_FILTERS = [['vse', 'Vše'], ['moje', 'Moje'], ['nepridelene', 'Nepřidělené'], ['schvaleni', 'Ke schválení'], ['bez_textu', 'Bez textu']];
+const mkMyEmail = () => String(session?.email || '').toLowerCase();
+const mkIsoPlus = (iso, days) => { const d = new Date(iso + 'T12:00:00'); d.setDate(d.getDate() + days); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+const mkDayLabel = t => { if (!t.datum) return ''; const d = new Date(t.datum + 'T12:00:00'); return d.toLocaleDateString('cs-CZ', { weekday: 'short', day: 'numeric', month: 'numeric' }); };
+
+function mkOvRows() {
+  const cut = mkIsoPlus(mkTodayIso(), -14), rows = [];
+  for (const a of Object.values(mkAkce)) {
+    if (!a || !a.id || !a.marketing?.ukoly) continue;
+    if (/zruš/i.test(a.status || '') || (a.date && String(a.date).slice(0, 10) < cut)) continue;   // zrušené a dávno proběhlé akce se nezobrazují
+    for (const t of Object.values(a.marketing.ukoly)) {
+      if (!t || !t.id) continue;
+      const d = t.draftId ? mkDrafts[t.draftId] || null : null;
+      rows.push({ a, t, d, st: d ? (d.status || 'navrh') : null, text: MK_TEXTCH.includes(t.kanal) });
+    }
+  }
+  return rows.sort((x, y) => `${x.t.datum || '9999'}${x.t.cas || ''}`.localeCompare(`${y.t.datum || '9999'}${y.t.cas || ''}`));
+}
+
+const mkOvPass = r => {
+  const me = mkMyEmail(), f = mkOv.filter;
+  if (!mkOv.done && r.t.done) return false;
+  if (f === 'moje') return r.t.assignee?.email === me;
+  if (f === 'nepridelene') return !r.t.assignee && !r.t.done;
+  if (f === 'schvaleni') return r.st === 'ke_schvaleni';
+  if (f === 'bez_textu') return r.text && !r.d && !r.t.done;
+  return true;
+};
+
+function mkOvGroupOf(r, today, weekEnd) {
+  if (r.t.done) return 'done';
+  const d = r.t.datum || '9999';
+  if (d < today) return 'late';
+  if (d <= weekEnd) return 'week';
+  if (d <= mkIsoPlus(weekEnd, 7)) return 'next';
+  return 'later';
+}
+const MK_OV_GROUPS = { late: 'Po termínu', week: 'Tento týden', next: 'Příští týden', later: 'Později', done: 'Hotovo' };
+
+function mkOvRowHtml(r, today) {
+  const { a, t, d, st } = r, late = !t.done && t.datum && t.datum < today, key = `${a.id}/${t.id}`, busy = !!mkOv.busy[key];
+  const me = mkMyEmail(), team = mkTeam || [];
+  const people = team.some(m => m.email === t.assignee?.email) || !t.assignee ? team : [...team, t.assignee];
+  const assign = `<select data-ov="assign" aria-label="Zodpovědný"${busy ? ' disabled' : ''}><option value="">— nikdo —</option>${people.map(m => `<option value="${escHtml(m.email)}"${m.email === t.assignee?.email ? ' selected' : ''}>${escHtml(m.name)}</option>`).join('')}</select>`;
+  const take = !t.assignee && !t.done && team.some(m => m.email === me) ? `<button type="button" data-ov="take"${busy ? ' disabled' : ''}>Beru to</button>` : '';
+  const badge = !r.text ? '' : d ? `<span class="mk-status s-${escHtml(st)}">${escHtml(MK_STATUS[st] || st)}</span>` : '<span class="mk-status mk-nodraft">Bez textu</span>';
+  const opts = Object.entries(MK_STATUS).map(([k, l]) => `<option value="${k}"${k === st ? ' selected' : ''}>${escHtml(l)}</option>`).join('');
+  const textActs = !r.text ? '' : d
+    ? `<select data-ov="status" aria-label="Stav textu"${busy ? ' disabled' : ''}>${opts}</select><button type="button" data-ov="copy">Kopírovat</button><button type="button" data-ov="open">Návrh ›</button>`
+    : `<button type="button" class="go" data-ov="write"${busy ? ' disabled' : ''}>${busy ? 'Marek píše…' : 'Napsat text'}</button>`;
+  return `<div class="mk-ov-row${t.done ? ' done' : ''}" data-akce="${escHtml(a.id)}" data-task="${escHtml(t.id)}">
+    <input type="checkbox" data-ov="done" ${t.done ? 'checked' : ''}${busy ? ' disabled' : ''} aria-label="Hotovo: ${escHtml(t.ucel || t.napad || 'úkol')}">
+    <div>
+      <div class="mk-ov-title">${escHtml(t.ucel || t.napad || 'Úkol')}</div>
+      <div class="mk-ov-meta"><b>${escHtml(mkDayLabel(t))}${t.cas ? ' ' + escHtml(t.cas) : ''}</b><span class="mk-chan">${escHtml(MK_PCH[t.kanal] || t.kanal)}</span><span>${escHtml(a.name || '')}</span>${badge}${late ? '<span class="late">po termínu</span>' : ''}${t.done && t.done_by ? `<span>✓ ${escHtml(t.done_by)}</span>` : ''}</div>
+      ${d?.text ? `<div class="mk-ov-prev">${escHtml(d.text)}</div>` : ''}
+      <div class="mk-ov-act">${assign}${take}${textActs}</div>
+    </div>
+  </div>`;
+}
+
+function mkOvRender() {
+  const list = document.getElementById('mk-ov-list'); if (!list) return;
+  const act = document.activeElement;
+  if (act && list.contains(act) && act.tagName === 'SELECT') { clearTimeout(mkOvRender.t); mkOvRender.t = setTimeout(mkOvRender, 1200); return; }   // neničit právě otevřený výběr
+  const today = mkTodayIso(), dow = (new Date().getDay() + 6) % 7, weekEnd = mkIsoPlus(today, 6 - dow), all = mkOvRows(), me = mkMyEmail();
+  // souhrn: otevřené příspěvky po termínu a tento týden
+  const now = all.filter(r => !r.t.done && (r.t.datum || '9999') <= weekEnd), n = (f) => now.filter(f).length;
+  document.getElementById('mk-ov-sum').textContent = all.length
+    ? `Tento týden a po termínu: ${now.length} ${now.length === 1 ? 'příspěvek' : now.length > 0 && now.length < 5 ? 'příspěvky' : 'příspěvků'}` + (now.length ? ` · bez textu: ${n(r => r.text && !r.d)} · ke schválení: ${n(r => r.st === 'ke_schvaleni')} · nepřidělených: ${n(r => !r.t.assignee)} · po termínu: ${n(r => r.t.datum < today)}` : '')
+    : 'Zatím tu nejsou žádné marketingové úkoly. Vytvoř plán v záložce Marketingový plán a převeď ho do 10base.';
+  document.getElementById('mk-ov-filters').innerHTML = MK_OV_FILTERS.map(([k, l]) => `<button type="button" data-ovf="${k}"${k === mkOv.filter ? ' class="active"' : ''}>${escHtml(l)}</button>`).join('') + `<button type="button" data-ovf="done"${mkOv.done ? ' class="active"' : ''}>Zobrazit hotové</button>`;
+  const rows = all.filter(mkOvPass);
+  if (!rows.length) { list.innerHTML = `<div class="mk-empty">${all.length ? 'Pro tento filtr nic není.' : ''}</div>`; return; }
+  let html = '';
+  for (const g of Object.keys(MK_OV_GROUPS)) {
+    const part = rows.filter(r => mkOvGroupOf(r, today, weekEnd) === g); if (!part.length) continue;
+    html += `<div class="mk-ov-group${g === 'late' ? ' late' : ''}">${MK_OV_GROUPS[g]} (${part.length})</div>` + part.map(r => mkOvRowHtml(r, today)).join('');
+  }
+  list.innerHTML = html;
+}
+
+async function mkOvLoadTeam() {
+  if (mkTeamAsked) return; mkTeamAsked = true;
+  try { mkTeam = (await mkCall({ action: 'task_team' })).team || []; } catch (e) { mkTeam = []; mkTeamAsked = false; }
+  mkOvRender();
+}
+
+document.getElementById('mk-ov-filters').addEventListener('click', e => {
+  const b = e.target.closest('button[data-ovf]'); if (!b) return;
+  if (b.dataset.ovf === 'done') mkOv.done = !mkOv.done; else mkOv.filter = b.dataset.ovf;
+  mkOvRender();
+});
+
+async function mkOvAct(el) {
+  const row = el.closest('.mk-ov-row'); if (!row) return;
+  const akceId = row.dataset.akce, taskId = row.dataset.task, key = `${akceId}/${taskId}`, a = mkAkce[akceId], t = a?.marketing?.ukoly?.[taskId], op = el.dataset.ov;
+  if (!t || mkOv.busy[key]) return;
+  const d = t.draftId ? mkDrafts[t.draftId] : null;
+  if (op === 'copy') return d && mkCopy(d.text);
+  if (op === 'open') { if (!d) return; mkJumpTo = d.id; mkFilter = (d.status || 'navrh') === 'archiv' ? 'archiv' : 'aktivni'; mkRenderFilters(); mkShowTab('texts'); mkRenderList(); return; }
+  mkOv.busy[key] = true; mkOvRender();
+  try {
+    if (op === 'done') await mkCall({ action: 'task_done', akceId, taskId, done: el.checked });
+    else if (op === 'assign') await mkCall({ action: 'task_assign', akceId, taskId, email: el.value });
+    else if (op === 'take') await mkCall({ action: 'task_assign', akceId, taskId, email: mkMyEmail() });
+    else if (op === 'status' && d) await mkCall({ action: 'draft_status', draftId: d.id, status: el.value });
+    else if (op === 'write') {
+      const instructions = `Příspěvek z marketingového úkolu na ${t.datum || '?'}${t.cas ? ' v ' + t.cas : ''}. Záměr: ${t.ucel || '?'}.${t.napad ? ' Námět (nápad, ne ověřená fakta): ' + t.napad : ''}`.slice(0, 1000);
+      const r = await mkCall({ akceId, channel: t.kanal, instructions, taskId });
+      mkDrafts[r.draft.id] = r.draft;
+      showToast('Text je připravený, zkontroluj ho a nastav stav.');
+    }
+  } catch (err) { showToast(err.message); }
+  finally { delete mkOv.busy[key]; mkOvRender(); }
+}
+document.getElementById('mk-ov-list').addEventListener('click', e => { const el = e.target.closest('button[data-ov]'); if (el) mkOvAct(el); });
+document.getElementById('mk-ov-list').addEventListener('change', e => { const el = e.target.closest('[data-ov]'); if (el && el.tagName !== 'BUTTON') mkOvAct(el); });
+
 function mkShowTab(tab) {
   document.querySelectorAll('#mk-tabs button').forEach(b => { const on = b.dataset.tab === tab; b.classList.toggle('active', on); b.setAttribute('aria-selected', on); });
+  document.getElementById('mk-sec-overview').hidden = tab !== 'overview';
+  if (tab === 'overview') mkOvLoadTeam();
   document.getElementById('mk-sec-texts').hidden = tab !== 'texts';
   document.getElementById('mk-sec-plan').hidden = tab !== 'plan';
 }
